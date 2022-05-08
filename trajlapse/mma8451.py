@@ -315,8 +315,5 @@ if __name__ == "__main__":
     mma8451.set_resolution()
     while True:
         axes = mma8451.get_axes_measurement()
-        print("g x = %.3fm/s2    y = %.3fm/s2    z = %.3fm/s2" %
-             (axes['x'], axes['y'], axes['z']))
-        #print("Position = %d   x = %.3fm/s2    y = %.3fm/s2    z = %.3fm/s2" %
-        #     (mma8451.get_orientation(),axes['x'], axes['y'], axes['z']))
+        print(f"gx={axes['x']:.3f}m/s² gy={axes['y']:.3f}m/s² gz={axes['z']:.3f}m/s²")
         time.sleep(0.1)
