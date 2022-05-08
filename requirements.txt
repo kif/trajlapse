@@ -1,2 +1,3 @@
 adafruit-circuitpython-pca9685 #servo-motor control
+smbus # accelrometer
 
