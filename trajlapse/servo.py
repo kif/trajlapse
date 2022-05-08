@@ -1,13 +1,29 @@
-#!/usr/bin/python
-from __future__ import division
-import Adafruit_PCA9685
+#!/usr/bin/python3
+#import Adafruit_PCA9685
 from collections import OrderedDict
-pwm = Adafruit_PCA9685.PCA9685()
+
+from board import SCL, SDA
+import busio
+
+# Import the PCA9685 module.
+from adafruit_pca9685 import PCA9685
+
+# Create the I2C bus interface.
+i2c_bus = busio.I2C(SCL, SDA)
+
+# Create a simple PCA9685 class instance.
+pwm = PCA9685(i2c_bus)
+
+#pwm = Adafruit_PCA9685.PCA9685()
 # Set frequency to 50hz, good for servos.
 # gives a period of 20ms/cycle
-FREQ = 330
-RESOLUTION = 4096
-pwm.set_pwm_freq(FREQ)
+#FREQ = 330
+FREQ = 50
+RESOLUTION = 65536 #4096
+# Set the PWM frequency to 60hz.
+pwm.frequency = FREQ
+#pwm.set_pwm_freq(FREQ)
+FREQ = pwm.frequency
 
 class Servo(object):
     """Represent a servomotor"""
@@ -41,7 +57,9 @@ class Servo(object):
     def move(self, angle):
         "Set the servo motor to the given angle in degree"
         ticks = int(round(self.calc(angle)))
-        pwm.set_pwm(self.pin, 0, ticks)
+        ticks = min(ticks, 65535)
+        ticks = max(ticks, 0)
+        pwm.channels[self.pin].duty_cycle = ticks
         self.angle_req = angle
         angle_set = (ticks - self.inter) / self.slope + self.offset
         self.angle_set = -angle_set if self.reverse else angle_set
@@ -54,7 +72,7 @@ class Servo(object):
         
     def off(self):
         "switch off the servo"
-        pwm.set_pwm(self.pin, 0, 0)
+        pwm.channels[self.pin].duty_cycle=0
         self.angle_req = None
         self.angle_set = None
 
