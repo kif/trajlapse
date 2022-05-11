@@ -9,6 +9,9 @@
 import smbus
 import os
 import time
+import threading
+import collections
+Acceleration = collections.namedtuple("Acceleration", "x y z")
 import logging.config
 
 logging.basicConfig()
@@ -305,10 +308,41 @@ class MMA8451:
         return {"x": x, "y": y, "z": z}
 
 
-class Accelerometer(object):
+class Accelerometer(threading.Thread):
     def __init__(self):
-        pass
+        threading.Thread.__init__(self)
+        self._gx = self._gy = self._gz = None
+        self.sem = threading.Semaphore()
+        self.quit = threading.Event()
+        self.mma8451 = MMA8451(sensor_range=RANGE_2G,data_rate=BW_RATE_1_56HZ, debug=False)
 
+    def get(self):
+        with self.sem:
+           res = Acceleration(self._gx, self._gy, self._gz)
+        return res
+
+    def run(self):
+        self.mma8451.set_resolution() 
+        while not self.quit.is_set():
+            axes = self.mma8451.get_axes_measurement()
+            with self.sem:
+                self._gx = axes["x"]
+                self._gy = axes["y"]
+                self._gz = axes["z"]
+            time.sleep(0.1)
+
+    @property
+    def gx(self):
+        with self.sem:
+            return self._gx
+    @property
+    def gy(self):
+        with self.sem:
+            return self._gy
+    @property
+    def gz(self):
+        with self.sem:
+            return self._gz
 
 if __name__ == "__main__":
     mma8451 = MMA8451(sensor_range=RANGE_2G,data_rate=BW_RATE_6_25HZ, debug=False)
