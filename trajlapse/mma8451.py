@@ -9,11 +9,7 @@
 import smbus
 import os
 import time
-import threading
-import collections
-Acceleration = collections.namedtuple("Acceleration", "x y z")
 import logging.config
-
 logging.basicConfig()
 logger = logging.getLogger('mma8451')
 
@@ -91,7 +87,7 @@ ORIENTATION_POS = {
 }
 BCM2708_COMBINED_PARAM_PATH = '/sys/module/i2c_bcm2708/parameters/combined'
 BOARD_CPUINFO = '/proc/cpuinfo'
-
+DELAY = 0.01 #s
 
 class MMA8451:
 
@@ -153,7 +149,7 @@ class MMA8451:
         Returns:
             Data read.
         """
-        time.sleep(0.3)
+        time.sleep(DELAY)
         return self._smbus.read_byte_data(self.i2c_address, register)
 
     def write_byte_data(self, register, value):
@@ -162,7 +158,7 @@ class MMA8451:
             register: Register value where value has to be written.
             value: Value to be written. Max value is 2**8 - 1.
         """
-        time.sleep(0.1)
+        time.sleep(DELAY)
         self._smbus.write_byte_data(self.i2c_address, register, value)
 
     def read_block_data(self, register, l):
@@ -175,7 +171,7 @@ class MMA8451:
         """
         # *********** WARNING ****************
         # crashes the kernel
-        time.sleep(0.1)
+        time.sleep(DELAY)
         le = l if l <= MAX_BLOCK_LEN else MAX_BLOCK_LEN
         return self._smbus.read_block_data(self.i2c_address, register, le)
 
@@ -187,7 +183,7 @@ class MMA8451:
         Returns:
             Data read in a list.
         """
-        time.sleep(0.3)
+        time.sleep(DELAY)
         le = l if l <= MAX_BLOCK_LEN else MAX_BLOCK_LEN
         return self._smbus.read_i2c_block_data(self.i2c_address, register, le)
 
@@ -237,7 +233,7 @@ class MMA8451:
         self.write_byte_data(MMA8451_REG_CTRL_REG2, MMA8451_RESET)
         while self.read_byte_data(MMA8451_REG_CTRL_REG2) != 0:
             logger.debug('trying to reset the sensor.')
-            time.sleep(1)
+            time.sleep(10*DELAY)
 
     def set_range(self, value):
         """ Set the range for the sensor.
@@ -307,42 +303,6 @@ class MMA8451:
 
         return {"x": x, "y": y, "z": z}
 
-
-class Accelerometer(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self._gx = self._gy = self._gz = None
-        self.sem = threading.Semaphore()
-        self.quit = threading.Event()
-        self.mma8451 = MMA8451(sensor_range=RANGE_2G,data_rate=BW_RATE_1_56HZ, debug=False)
-
-    def get(self):
-        with self.sem:
-           res = Acceleration(self._gx, self._gy, self._gz)
-        return res
-
-    def run(self):
-        self.mma8451.set_resolution() 
-        while not self.quit.is_set():
-            axes = self.mma8451.get_axes_measurement()
-            with self.sem:
-                self._gx = axes["x"]
-                self._gy = axes["y"]
-                self._gz = axes["z"]
-            time.sleep(0.1)
-
-    @property
-    def gx(self):
-        with self.sem:
-            return self._gx
-    @property
-    def gy(self):
-        with self.sem:
-            return self._gy
-    @property
-    def gz(self):
-        with self.sem:
-            return self._gz
 
 if __name__ == "__main__":
     mma8451 = MMA8451(sensor_range=RANGE_2G,data_rate=BW_RATE_6_25HZ, debug=False)
