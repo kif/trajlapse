@@ -1,4 +1,7 @@
+numpy
 adafruit-circuitpython-pca9685 #servo-motor control
 smbus # accelrometer
-sqlitedict
+sqlitedict #to store dict
+picamera #to control the camera
+
 
