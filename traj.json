@@ -1,15 +1,15 @@
 {
-  "folder": "/mnt/sda/test1",
-  "delay": 2, 
+  "folder": "/mnt/sda/test2",
+  "delay": 10, 
   "avg_speed": 25, 
   "avg_speed_nb_img": 2, 
   "avg_awb": 200, 
   "trajectory": [
     {
       "tilt": 0, 
-      "move": 10, 
+      "move": 1, 
       "pan": -10, 
-      "stay": 10
+      "stay": 1
     }, 
     {
       "tilt": 0, 

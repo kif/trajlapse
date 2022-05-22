@@ -74,7 +74,9 @@ class Trajectory(object):
         if json_file:
             self.load_config(json_file)
         self.default_pos = self.calc_pos(-1)
-        self.goto_pos(self.default_pos)
+
+    def init(self):
+        return self.goto_pos(self.default_pos)
 
     @property
     def duration(self):
@@ -200,6 +202,7 @@ class TimeLapse(threading.Thread):
                                    )
 
         self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera, json_file=config_file)
+        self.servo_config = self.trajectory.init()
         self.load_config(config_file)
         self.camera.warm_up(self.delay)
 
@@ -227,7 +230,8 @@ class TimeLapse(threading.Thread):
                                    encode=json.dumps, decode=json.loads)
 
     def __del__(self):
-        self.quit_event.set()
+        if self.quit_event and callable(self.quit_event.set):
+            self.quit_event.set()
         self.camera = None
         self.trajectory = None
         self.accelero = None
@@ -285,6 +289,7 @@ class TimeLapse(threading.Thread):
             metadata = self.camera_queue.get()
             metadata["position"] = self.position
             metadata["gravity"] = self.accelero.get()
+            metadata["servo_config"] = self.servo_config
             filename = metadata.get("filename")
             self.database[filename] = metadata
             self.camera_queue.task_done()
@@ -294,7 +299,7 @@ class TimeLapse(threading.Thread):
                 next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
                 self.frame_idx += 1
                 if next_pos != self.position:
-                    self.trajectory.goto_pos(next_pos)
+                    self.servo_config = self.trajectory.goto_pos(next_pos)
                     self.position = next_pos
             logger.info(f"Frame #{self.frame_idx:05d}")
             if self.frame_idx % 10 == 0:
