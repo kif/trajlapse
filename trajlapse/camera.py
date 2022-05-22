@@ -248,7 +248,7 @@ class CameraSimple(threading.Thread):
                  # avg_ev=21, avg_wb=31, histo_ev=None,
                  wb_red=None, wb_blue=None,
                  quit_event=None, queue=None, config_queue=None,
-                 folder="/mnt/data", index_callable=None):
+                 folder="/tmp", index_callable=None):
         """This thread handles the camera: simple camera saving data to 
         
         """
@@ -316,6 +316,7 @@ class CameraSimple(threading.Thread):
         self.histo_ev = dico.get("histo_ev", self.histo_ev)
         self.avg_ev = dico.get("avg_ev", self.avg_ev)
         self.avg_wb = dico.get("avg_wb", self.avg_wb)
+        self.folder = dico.get("folder", self.folder)
 
     def warm_up(self, delay=10):
         "warm up the camera"
