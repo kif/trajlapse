@@ -215,6 +215,8 @@ class TimeLapse(threading.Thread):
 
     def init(self):
         "Sub-initialisation"
+        if not os.path.exists(self.folder):
+            os.makedirs(self.folder)
         self.database = SqliteDict(os.path.join(self.folder,"metadata.sqlite"), 
                                    encode=json.dumps, decode=json.loads)
         
@@ -243,6 +245,7 @@ class TimeLapse(threading.Thread):
                 self.camera.set_config(dico["camera"])
             self.delay = dico.get("delay", self.delay)
             self.folder = dico.get("folder", self.folder)
+            
             self.do_analysis = dico.get("do_analysis", self.do_analysis)
             # self.camera.set_analysis(self.do_analysis)
             self.init()
