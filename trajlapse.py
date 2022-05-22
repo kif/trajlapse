@@ -311,5 +311,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.debug:
         logging.root.setLevel(logging.DEBUG)
-    tl = TimeLaps(config_file=args.json, framerate=0.1)
+    tl = TimeLapse(config_file=args.json, framerate=0.1)
     tl.run()
