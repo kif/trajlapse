@@ -15,7 +15,7 @@ import logging
 from fractions import Fraction
 import numpy
 from PIL import Image
-import pyexiv2
+# import pyexiv2
 from picamera import PiCamera
 from scipy.signal import convolve, gaussian, savgol_coeffs
 from .exposure import lens
