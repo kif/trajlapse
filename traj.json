@@ -1,6 +1,6 @@
 {
   "folder": "/mnt/sda/test1",
-  "delay": 10, 
+  "delay": 2, 
   "avg_speed": 25, 
   "avg_speed_nb_img": 2, 
   "avg_awb": 200, 
