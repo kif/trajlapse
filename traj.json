@@ -1,6 +1,6 @@
 {
   "folder": "/mnt/sda/test2",
-  "warmup": 5
+  "warmup": 5,
   "delay": 2,
    
   "avg_speed": 25, 
