@@ -151,7 +151,7 @@ class Trajectory(object):
 
 class TimeLapse(threading.Thread):
 
-    def __init__(self, resolution=(4056 / 2, 3040 / 2), framerate=1, delay=10,
+    def __init__(self, resolution=(4056 // 2, 3040 // 2), framerate=1, delay=10,
                  folder="/mnt/sda", avg_awb=200, avg_ev=25, config_file="parameters.json"):
         threading.Thread.__init__(self, name="TimeLapse")
         self.frame_idx = 0
