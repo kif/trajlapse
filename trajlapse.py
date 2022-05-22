@@ -198,7 +198,7 @@ class TimeLapse(threading.Thread):
                                    folder=folder
                                    )
         self.camera.warm_up()
-        self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera)
+        self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera, json_file=config_file)
         self.load_config(config_file)
 
         # for i in range(self.pool_size_savers):
