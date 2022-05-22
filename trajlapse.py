@@ -115,7 +115,6 @@ class Trajectory(object):
         self.positionner.goto(pos)
         res = OrderedDict([("pan", self.positionner.servo_pan.get_config()),
                            ("tilt", self.positionner.servo_tilt.get_config())])
-        print(res)
         return res
 
     def calc_pos(self, when):
@@ -175,6 +174,7 @@ class TimeLapse(threading.Thread):
         self.config_queue = Queue()
         self.quit_event = threading.Event()
         self.delay = delay
+        self.warmup = 10
         self.folder = os.path.abspath(folder)
         self.avg_wb = avg_awb  # time laps over which average gains
         self.avg_ev = avg_ev  # time laps over which average speed
@@ -204,7 +204,7 @@ class TimeLapse(threading.Thread):
         self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera, json_file=config_file)
         self.servo_config = self.trajectory.init()
         self.load_config(config_file)
-        self.camera.warm_up(self.delay)
+        self.camera.warm_up(self.warmup)
 
         # for i in range(self.pool_size_savers):
         #     saver = Saver(folder=self.folder,
@@ -254,6 +254,7 @@ class TimeLapse(threading.Thread):
                 self.camera.set_config(dico["camera"])
             self.delay = dico.get("delay", self.delay)
             self.folder = dico.get("folder", self.folder)
+            self.warmup = dico.get("warmup", self.warmup)
 
             self.do_analysis = dico.get("do_analysis", self.do_analysis)
             # self.camera.set_analysis(self.do_analysis)

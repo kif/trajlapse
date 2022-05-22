@@ -345,6 +345,7 @@ class CameraSimple(threading.Thread):
         while not self.quit_event.is_set():
             filename = self.get_filename()
             fullname = os.path.join(self.folder, filename)
+            print(fullname)
             with self.lock:
                 before = time.time()
                 self.camera.capture(fullname)
