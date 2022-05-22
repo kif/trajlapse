@@ -195,7 +195,8 @@ class TimeLapse(threading.Thread):
                                    queue=self.camera_queue,
                                    config_queue=self.config_queue,
                                    quit_event=self.quit_event,
-                                   folder=folder
+                                   folder=folder,
+                                   index_callable=self.get_index
                                    )
 
         self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera, json_file=config_file)
