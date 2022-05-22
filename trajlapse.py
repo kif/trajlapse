@@ -23,7 +23,6 @@ from sqlitedict import SqliteDict
 from trajlapse import servo
 from trajlapse.positionner import Position, Positionner
 from trajlapse.accelero import Accelerometer
-from trajlapse.exposure import lens
 from trajlapse.camera import CameraSimple, #Camera#, Saver, Analyzer, Frame
 
 trajectory = {
@@ -154,7 +153,7 @@ class TimeLapse(threading.Thread):
 
     def __init__(self, resolution=(4056/2, 3040/2), framerate=1, delay=10,
                  folder="/mnt/sda", avg_awb=200, avg_ev=25, config_file="parameters.json"):
-        threading.Thread.__init__(self, name="TimeLaps")
+        threading.Thread.__init__(self, name="TimeLapse")
         self.frame_idx = 0
         self.storage = {}
         self.storage_maxlen = 10
@@ -179,9 +178,7 @@ class TimeLapse(threading.Thread):
         signal.signal(signal.SIGINT, self.quit)
         self.accelero = Accelerometer(quit_event=self.quit_event)
         self.accelero.start()
-        self.folder = folder
-        self.database = SqliteDict(os.path.join(folder,"metadata.sqlite"), 
-                                   encode=json.dumps, decode=json.loads)
+        self.database = {} # created at init
         # self.servo_status = None
 
         self.camera = CameraSimple(resolution=resolution,
@@ -216,6 +213,12 @@ class TimeLapse(threading.Thread):
         self.position = self.trajectory.goto(self.delay)
         self.camera.start()
 
+    def init(self):
+        "Sub-initialisation"
+        self.database = SqliteDict(os.path.join(self.folder,"metadata.sqlite"), 
+                                   encode=json.dumps, decode=json.loads)
+        
+
     def __del__(self):
         self.quit_event.set()
         self.camera = None
@@ -241,7 +244,8 @@ class TimeLapse(threading.Thread):
             self.delay = dico.get("delay", self.delay)
             self.folder = dico.get("folder", self.folder)
             self.do_analysis = dico.get("do_analysis", self.do_analysis)
-            self.camera.set_analysis(self.do_analysis)
+            # self.camera.set_analysis(self.do_analysis)
+            self.init()
 
     def save_config(self, index=None):
         if index is not None:

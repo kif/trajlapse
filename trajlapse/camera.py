@@ -344,7 +344,7 @@ class CameraSimple(threading.Thread):
             fullname = os.path.join(self.folder, filename)
             with self.lock:
                 before = time.time()
-                self.camera.capture(filename)
+                self.camera.capture(fullname)
                 after = time.time()
             metadata = self.get_metadata()
             metadata["filename"] = filename
