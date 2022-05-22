@@ -22,12 +22,15 @@ except:
 
 class Accelerometer(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, quit_event=None):
         threading.Thread.__init__(self)
         self._gx = self._gy = self._gz = self.timestamp = None
         self.sem = threading.Semaphore()  # used to ensure consistent state intenally
         self.lock = threading.Semaphore()  # used to lock recording from outside
-        self.quit = threading.Event()
+        if quit_event:
+            self.quit_event = quit_event
+        else:
+            self.quit_event = threading.Event()
         self.mma8451 = mma8451.MMA8451(sensor_range=mma8451.RANGE_2G, data_rate=mma8451.BW_RATE_1_56HZ, debug=False)
 
     def get(self):
@@ -37,7 +40,7 @@ class Accelerometer(threading.Thread):
 
     def run(self):
         self.mma8451.set_resolution()
-        while not self.quit.is_set():
+        while not self.quit_event.is_set():
             with self.lock:
                 t0 = round(time.time(), 3)  # ms precision
                 axes = self.mma8451.get_axes_measurement()
@@ -62,6 +65,9 @@ class Accelerometer(threading.Thread):
     def gz(self):
         with self.sem:
             return self._gz
+
+    def __del__(self):
+        self.quit_event.set()
 
 
 if __name__ == "__main__":

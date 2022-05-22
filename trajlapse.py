@@ -5,7 +5,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("trajlapse")
 
 import signal
-from picamera import PiCamera
+# from picamera import PiCamera
 
 import time
 import numpy
@@ -19,12 +19,12 @@ from fractions import Fraction
 import json
 from collections import namedtuple, OrderedDict, deque
 from argparse import ArgumentParser
-
+from sqlitedict import SqliteDict
 from trajlapse import servo
 from trajlapse.positionner import Position, Positionner
 from trajlapse.accelero import Accelerometer
 from trajlapse.exposure import lens
-from camera import Camera, Saver, Analyzer, Frame
+from trajlapse.camera import CameraSimple, #Camera#, Saver, Analyzer, Frame
 
 trajectory = {
 "delay": 20,
@@ -145,12 +145,17 @@ class Trajectory(object):
         # print(last_timestamp, remaining, delta, adv)
         return Position(pan, tilt)
 
+    @property
+    def position(self):
+        return self.positionner.position
 
-class TimeLaps(threading.Thread):
 
-    def __init__(self, resolution=(3280, 2464), framerate=1, delay=20,
-                 folder=".", avg_awb=200, avg_ev=25, config_file="parameters.json"):
+class TimeLapse(threading.Thread):
+
+    def __init__(self, resolution=(4056/2, 3040/2), framerate=1, delay=10,
+                 folder="/mnt/sda", avg_awb=200, avg_ev=25, config_file="parameters.json"):
         threading.Thread.__init__(self, name="TimeLaps")
+        self.frame_idx = 0
         self.storage = {}
         self.storage_maxlen = 10
         self.pool_of_analyzers = []
@@ -168,43 +173,46 @@ class TimeLaps(threading.Thread):
         self.avg_wb = avg_awb  # time laps over which average gains
         self.avg_ev = avg_ev  # time laps over which average speed
         self.config_file = os.path.abspath(config_file)
-        self.position = Position(0, 0)
+        self.position = Position(None, None)
         self.start_time = self.last_img = time.time()
         self.next_img = self.last_img + 2 * self.delay
         signal.signal(signal.SIGINT, self.quit)
-        self.accelero = Accelerometer()
+        self.accelero = Accelerometer(quit_event=self.quit_event)
         self.accelero.start()
         self.folder = folder
-        self.servo_status = None
+        self.database = SqliteDict(os.path.join(folder,"metadata.sqlite"), 
+                                   encode=json.dumps, decode=json.loads)
+        # self.servo_status = None
 
-        self.camera = Camera(resolution=resolution,
-                             framerate=framerate,
-                             avg_ev=avg_ev,
-                             avg_wb=avg_awb,
-                             histo_ev=None,
-                             wb_red=None,
-                             wb_blue=None,
-                             queue=self.camera_queue,
-                             config_queue=self.config_queue,
-                             quit_event=self.quit_event,
-                             )
+        self.camera = CameraSimple(resolution=resolution,
+                                   framerate=framerate,
+                                   # avg_ev=avg_ev,
+                                   # avg_wb=avg_awb,
+                                   # histo_ev=None,
+                                   # wb_red=None,
+                                   # wb_blue=None,
+                                   queue=self.camera_queue,
+                                   config_queue=self.config_queue,
+                                   quit_event=self.quit_event,
+                                   directory=folder
+                                   )
         self.camera.warm_up()
         self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera)
         self.load_config(config_file)
 
-        for i in range(self.pool_size_savers):
-            saver = Saver(folder=self.folder,
-                          queue=self.saving_queue,
-                          quit_event=self.quit_event)
-            saver.start()
-            self.pool_of_savers.append(saver)
-
-        for i in range(self.pool_size_analyzer):
-            analyzer = Analyzer(frame_queue=self.analysis_queue,
-                                 config_queue=self.config_queue,
-                                 quit_event=self.quit_event)
-            analyzer.start()
-            self.pool_of_analyzers.append(analyzer)
+        # for i in range(self.pool_size_savers):
+        #     saver = Saver(folder=self.folder,
+        #                   queue=self.saving_queue,
+        #                   quit_event=self.quit_event)
+        #     saver.start()
+        #     self.pool_of_savers.append(saver)
+        #
+        # for i in range(self.pool_size_analyzer):
+        #     analyzer = Analyzer(frame_queue=self.analysis_queue,
+        #                          config_queue=self.config_queue,
+        #                          quit_event=self.quit_event)
+        #     analyzer.start()
+        #     self.pool_of_analyzers.append(analyzer)
         self.position = self.trajectory.goto(self.delay)
         self.camera.start()
 
@@ -227,8 +235,7 @@ class TimeLaps(threading.Thread):
                 dico = json.load(jsonfile)
             # print(dico)
             if "trajectory" in dico:
-
-				self.trajectory.set_config(dico["trajectory"])
+                self.trajectory.set_config(dico["trajectory"])
             if "camera" in dico:
                 self.camera.set_config(dico["camera"])
             self.delay = dico.get("delay", self.delay)
@@ -254,36 +261,32 @@ class TimeLaps(threading.Thread):
         with open(fname, "w") as jsonfile:
             jsonfile.write(json.dumps(dico, indent=4))
 
+    def get_index(self):
+        return self.frame_idx
+
     def run(self):
         "Actually does the timelaps"
-        self.camera.set_analysis(self.do_analysis)
+        # self.camera.set_analysis(self.do_analysis)
+        
         while not self.quit_event.is_set():
-            frame = self.camera_queue.get()
-            frame.position = self.position
-            frame.servo_status = self.servo_status
-            if self.do_analysis:
-                self.analysis_queue.put(frame)
-            if self.position not in self.storage:
-                self.storage[self.position] = deque(maxlen=self.storage_maxlen)
-            self.storage[self.position].append(frame)
-            if time.time() >= tl.next_img:
-                frame.gravity = self.accelero.get()
-                self.saving_queue.put(self.storage.pop(self.position))
-                self.next_img = frame.timestamp + self.delay
-                next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
-                if next_pos != self.position:
-                    self.servo_status = self.trajectory.goto_pos(next_pos)
-                    self.position = next_pos
+            metadata = self.camera_queue.get()
+            metadata["position"] = self.position
+            metadata["gravity"] = self.accelero.get()
+            filename = metadata.get("filename")
+            self.database[filename] = metadata
             self.camera_queue.task_done()
-            logger.info("Frame #%04i. Length of queues: camera %i, analysis %i saving %i config %i",
-                            frame.index,
-                            self.camera_queue.qsize(),
-                            self.analysis_queue.qsize(),
-                            self.saving_queue.qsize(),
-                            self.config_queue.qsize()
-                            )
-            if frame.index % 100 == 0:
-                self.save_config(frame.index)
+            now = time.time()
+            if now >= self.next_img:
+                self.next_img = now + self.delay
+                next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
+                self.frame_idx += 1
+                if next_pos != self.position:
+                    self.trajectory.goto_pos(next_pos)
+                    self.position = next_pos
+            logger.info(f"Frame #{self.frame_idx:05i}")
+            if self.frame_idx % 10 == 0:
+                self.database.commit()
+                self.save_config(self.frame_idx)
 
 
 if __name__ == "__main__":
