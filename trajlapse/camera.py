@@ -343,7 +343,7 @@ class CameraSimple(threading.Thread):
         "main thread activity"
         self.camera.awb_mode = "auto"
         self.camera.exposure_mode = "auto"
-        while not self.quit_event.isset():
+        while not self.quit_event.is_set():
             filename = self.get_filename()
             fullname = os.path.join(self.folder, filename)
             with self.lock:
@@ -355,6 +355,7 @@ class CameraSimple(threading.Thread):
             metadata["time_before"] = before
             metadata["time_after"] = after
             self.queue.put(metadata)
+            time.sleep(1)
         self.camera.close()
 
     def get_metadata(self):
