@@ -29,7 +29,7 @@ class Positionner:
         with self.lock:
             return self._position
 
-    position = property(self.get)
+    position = property(get)
 
     def goto(self, where):
         """Move the head to a given position
