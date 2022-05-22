@@ -111,8 +111,9 @@ class Trajectory(object):
         Operates usually in a separated thread
 		"""
         self.positionner.goto(pos)
-        res = OrderedDict([("pan", self.servo_pan.get_config()),
-                           ("tilt", self.servo_tilt.get_config())])
+        res = OrderedDict([("pan", self.positionner.servo_pan.get_config()),
+                           ("tilt", self.positionner.servo_tilt.get_config())])
+        print(res)
         return res
 
     def calc_pos(self, when):
