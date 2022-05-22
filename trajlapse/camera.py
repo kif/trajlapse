@@ -245,12 +245,16 @@ class CameraSimple(threading.Thread):
     "A simple camera class which continuously saves images"
 
     def __init__(self, resolution=(4056, 3040), framerate=1, sensor_mode=3,
-                 # avg_ev=21, avg_wb=31, histo_ev=None, wb_red=None, wb_blue=None,
+                 # avg_ev=21, avg_wb=31, histo_ev=None,
+                 wb_red=None, wb_blue=None,
                  quit_event=None, queue=None, config_queue=None,
                  folder="/mnt/data", index_callable=None):
         """This thread handles the camera: simple camera saving data to 
         
         """
+        self.wb_red = wb_red or []
+        self.wb_blue = wb_blue or []
+
         threading.Thread.__init__(self, name="Camera")
         signal.signal(signal.SIGINT, self.quit)
         self.quit_event = quit_event or threading.Event()
