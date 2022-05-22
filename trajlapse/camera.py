@@ -46,7 +46,7 @@ def get_isotime(force_time=None):
     gmtime = time.gmtime(force_time)
     tz_h = localtime.tm_hour - gmtime.tm_hour
     tz_m = localtime.tm_min - gmtime.tm_min
-    return f"{time.strftime('%Y-%m-%dT%H:%M:%S', localtime)}{tz_h:%+03d}:{tz_m:%02d}"
+    return f"{time.strftime('%Y-%m-%dT%H:%M:%S', localtime)}{tz_h:+03d}:{tz_m:02d}"
 
 
 class SavGol(object):
