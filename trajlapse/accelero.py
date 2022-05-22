@@ -15,7 +15,7 @@ import logging
 # logging.basicConfig()
 logger = logging.getLogger('accelero')
 try:
-    import mma8451
+    from . import mma8451
 except:
     logger.error("Unable to import mma8451 module")
 

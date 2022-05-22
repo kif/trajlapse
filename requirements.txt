@@ -1,7 +1,9 @@
+pillow
 numpy
+scipy
 adafruit-circuitpython-pca9685 #servo-motor control
 smbus # accelrometer
 sqlitedict #to store dict
 picamera #to control the camera
 rfoo #for debugging
-pillow
+
