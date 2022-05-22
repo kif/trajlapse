@@ -23,7 +23,7 @@ from sqlitedict import SqliteDict
 from trajlapse import servo
 from trajlapse.positionner import Position, Positionner
 from trajlapse.accelero import Accelerometer
-from trajlapse.camera import CameraSimple, #Camera#, Saver, Analyzer, Frame
+from trajlapse.camera import CameraSimple
 
 trajectory = {
 "delay": 20,
@@ -151,7 +151,7 @@ class Trajectory(object):
 
 class TimeLapse(threading.Thread):
 
-    def __init__(self, resolution=(4056/2, 3040/2), framerate=1, delay=10,
+    def __init__(self, resolution=(4056 / 2, 3040 / 2), framerate=1, delay=10,
                  folder="/mnt/sda", avg_awb=200, avg_ev=25, config_file="parameters.json"):
         threading.Thread.__init__(self, name="TimeLapse")
         self.frame_idx = 0
@@ -178,7 +178,7 @@ class TimeLapse(threading.Thread):
         signal.signal(signal.SIGINT, self.quit)
         self.accelero = Accelerometer(quit_event=self.quit_event)
         self.accelero.start()
-        self.database = {} # created at init
+        self.database = {}  # created at init
         # self.servo_status = None
 
         self.camera = CameraSimple(resolution=resolution,
@@ -217,9 +217,8 @@ class TimeLapse(threading.Thread):
         "Sub-initialisation"
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
-        self.database = SqliteDict(os.path.join(self.folder,"metadata.sqlite"), 
+        self.database = SqliteDict(os.path.join(self.folder, "metadata.sqlite"),
                                    encode=json.dumps, decode=json.loads)
-        
 
     def __del__(self):
         self.quit_event.set()
@@ -245,7 +244,7 @@ class TimeLapse(threading.Thread):
                 self.camera.set_config(dico["camera"])
             self.delay = dico.get("delay", self.delay)
             self.folder = dico.get("folder", self.folder)
-            
+
             self.do_analysis = dico.get("do_analysis", self.do_analysis)
             # self.camera.set_analysis(self.do_analysis)
             self.init()
@@ -274,7 +273,7 @@ class TimeLapse(threading.Thread):
     def run(self):
         "Actually does the timelaps"
         # self.camera.set_analysis(self.do_analysis)
-        
+
         while not self.quit_event.is_set():
             metadata = self.camera_queue.get()
             metadata["position"] = self.position
