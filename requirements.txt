@@ -4,3 +4,4 @@ smbus # accelrometer
 sqlitedict #to store dict
 picamera #to control the camera
 rfoo #for debugging
+pillow
