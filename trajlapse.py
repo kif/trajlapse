@@ -294,7 +294,7 @@ class TimeLapse(threading.Thread):
                 if next_pos != self.position:
                     self.trajectory.goto_pos(next_pos)
                     self.position = next_pos
-            logger.info(f"Frame #{self.frame_idx:05i}")
+            logger.info(f"Frame #{self.frame_idx:05d}")
             if self.frame_idx % 10 == 0:
                 self.database.commit()
                 self.save_config(self.frame_idx)
