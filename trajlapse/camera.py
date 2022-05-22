@@ -263,19 +263,6 @@ class CameraSimple(threading.Thread):
         self.index_callable = index_callable
         self.last_index = -1
         self.last_subindex = -1
-        if callable(index_callable):
-
-            def get_filename(self):
-                new_index = self.index_callable()
-                if self.last_index == new_index:
-                    self.last_subindex += 1
-                else:
-                    self.last_subindex = 0
-                    self.last_index = new_index
-                return f"{self.last_index:05i}-{self.last_subindex}.jpg"
-
-        else:
-            self.get_filename = lambda: str(get_isotime() + ".jpg")
         self.lock = threading.Semaphore()
         self.camera = PiCamera(resolution=resolution, framerate=framerate, sensor_mode=sensor_mode)
 
@@ -293,6 +280,18 @@ class CameraSimple(threading.Thread):
     def resume(self):
         "resume the recording"
         self.lock.release
+
+    def get_filename(self):
+        if callable(self.index_callable):
+            new_index = self.index_callable()
+            if self.last_index == new_index:
+                self.last_subindex += 1
+            else:
+                self.last_subindex = 0
+                self.last_index = new_index
+            return f"{self.last_index:05i}-{self.last_subindex}.jpg"
+        else:
+            return str(get_isotime() + ".jpg")
 
     def get_config(self):
         config = OrderedDict([("resolution", tuple(self.camera.resolution)),
