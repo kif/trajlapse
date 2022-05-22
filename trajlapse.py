@@ -158,7 +158,7 @@ class Trajectory(object):
 class TimeLapse(threading.Thread):
 
     def __init__(self, resolution=(4056 // 2, 3040 // 2), framerate=1, delay=10,
-                 folder="/mnt/sda", avg_awb=200, avg_ev=25, config_file="parameters.json"):
+                 folder="/tmp", avg_awb=200, avg_ev=25, config_file="parameters.json"):
         threading.Thread.__init__(self, name="TimeLapse")
         self.frame_idx = 0
         self.storage = {}
@@ -175,7 +175,7 @@ class TimeLapse(threading.Thread):
         self.quit_event = threading.Event()
         self.delay = delay
         self.warmup = 10
-        self.folder = os.path.abspath(folder)
+        self.folder = folder
         self.avg_wb = avg_awb  # time laps over which average gains
         self.avg_ev = avg_ev  # time laps over which average speed
         self.config_file = os.path.abspath(config_file)
@@ -197,7 +197,7 @@ class TimeLapse(threading.Thread):
                                    queue=self.camera_queue,
                                    config_queue=self.config_queue,
                                    quit_event=self.quit_event,
-                                   folder=folder,
+                                   folder=self.folder,
                                    index_callable=self.get_index
                                    )
 
@@ -254,6 +254,7 @@ class TimeLapse(threading.Thread):
                 self.camera.set_config(dico["camera"])
             self.delay = dico.get("delay", self.delay)
             self.folder = dico.get("folder", self.folder)
+            self.camera.folder = self.folder
             self.warmup = dico.get("warmup", self.warmup)
 
             self.do_analysis = dico.get("do_analysis", self.do_analysis)
@@ -271,6 +272,7 @@ class TimeLapse(threading.Thread):
         camera_config = self.camera.get_config()
         dico = OrderedDict([
                             ("delay", self.delay),
+                            ("warmup", self.warmup),
                             ("folder", self.folder),
                             ("do_analysis", self.do_analysis),
                             ("trajectory", self.trajectory.config),
