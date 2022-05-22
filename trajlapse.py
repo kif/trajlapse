@@ -184,7 +184,6 @@ class TimeLapse(threading.Thread):
         self.accelero.start()
         self.database = {}  # created at init
         # self.servo_status = None
-
         self.camera = CameraSimple(resolution=resolution,
                                    framerate=framerate,
                                    # avg_ev=avg_ev,
@@ -197,9 +196,10 @@ class TimeLapse(threading.Thread):
                                    quit_event=self.quit_event,
                                    folder=folder
                                    )
-        self.camera.warm_up()
+
         self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera, json_file=config_file)
         self.load_config(config_file)
+        self.camera.warm_up(self.delay)
 
         # for i in range(self.pool_size_savers):
         #     saver = Saver(folder=self.folder,
