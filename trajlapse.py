@@ -73,6 +73,7 @@ class Trajectory(object):
         self.positionner = Positionner(servo.pan, servo.tilt, locks=[self.camera.lock, self.accelero.lock])
         if json_file:
             self.load_config(json_file)
+        self.default_pos = self.calc_pos(-1)
         self.goto_pos(self.default_pos)
 
     @property
@@ -116,6 +117,9 @@ class Trajectory(object):
 
     def calc_pos(self, when):
         """Calculate the position it need to be at a given timestamp"""
+        if when < 0:
+            point = self.config[0]
+            return Position(point.get("pan", 0), point.get("tilt", 0))
         next_pos = last_pos = self.default_pos
         last_timestamp = remaining = when
         if remaining <= 0:
