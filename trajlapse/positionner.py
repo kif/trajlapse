@@ -20,7 +20,7 @@ class Positionner:
         self.delay_60_pan = 0.3  # Time to move the servo by 60°
         self.delay_60_tilt = 0.2  # Time to move the servo by 60°
         self.lock = Semaphore()
-        self._position = Position(None, None)
+        self._position = Position(360, 180)  # impossible position ...ensures long enough delays to move the first position
         self.locks = locks or []
 
     def __repr__(self):
