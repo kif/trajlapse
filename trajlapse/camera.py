@@ -289,7 +289,7 @@ class CameraSimple(threading.Thread):
             else:
                 self.last_subindex = 0
                 self.last_index = new_index
-            return f"{self.last_index:05i}-{self.last_subindex}.jpg"
+            return f"{self.last_index:05d}-{self.last_subindex}.jpg"
         else:
             return str(get_isotime() + ".jpg")
 
