@@ -67,7 +67,8 @@ class Accelerometer(threading.Thread):
             return self._gz
 
     def __del__(self):
-        self.quit_event.set()
+        if callable(self.quit_event):
+            self.quit_event.set()
 
 
 if __name__ == "__main__":

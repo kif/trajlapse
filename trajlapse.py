@@ -256,8 +256,9 @@ class TimeLapse(threading.Thread):
 
     def save_config(self, index=None):
         if index is not None:
-            fname = os.path.splitext(self.config_file)
+            fname = os.path.splitext(os.path.basename(self.config_file))
             fname = fname[0] + "_%05i" % index + fname[1]
+            fname = os.path.join(self.folder, fname)
         else:
             fname = self.config_file
         logger.info("Save config to %s", fname)
@@ -270,7 +271,7 @@ class TimeLapse(threading.Thread):
                             ("camera", camera_config),
                             ])
         with open(fname, "w") as jsonfile:
-            jsonfile.write(json.dumps(dico, indent=4))
+            jsonfile.write(json.dumps(dico, indent=2))
 
     def get_index(self):
         return self.frame_idx
