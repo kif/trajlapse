@@ -94,7 +94,7 @@ class Server(object):
         self.port = port
         self.bottle = bottle.Bottle()
         self.setup_routes()
-        self.positioner = Positioner(servo.pan, servo.tilt, locks=None)
+        self.positioner = Positioner(servo.pan, servo.tilt, locks=[acc.lock, ])
         self.default_pos = Position(0, 0)
         self.current_pos = None
         self.cam = None
@@ -196,23 +196,8 @@ class Server(object):
         return webpage
 
     def goto_pos(self, pos):
-        acc.pause()
-        try:
-            self.servo_pan.move(pos[0])
-            self.servo_tilt.move(pos[1])
-        except IOError as err:
-            print(err)
-        t = Timer(1.0, self.stop_motors)
-        t.start()
-        # stop motors after a second
-
-    def stop_motors(self):
-        try:
-            self.servo_pan.off()
-            self.servo_tilt.off()
-        except IOError as err:
-            print(err)
-        acc.resume()
+        self.positioner.goto(pos)
+        # self.positioner.stop_motors()
 
     def pan_min(self):
         pos = Position(-90, self.current_pos.tilt)
@@ -308,6 +293,7 @@ class Server(object):
         traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10}
                 for i in self.trajectory]
         camera = OrderedDict((("sensor_mode", 3),
+                              ("warmup", 10),
                               ("framerate", 1),
                               ("avg_wb", self.avg_wb),
                               ("avg_ev", self.avg_ev),
@@ -321,7 +307,7 @@ class Server(object):
                             ))
 
         with open(self.traj_file, "w") as f:
-            f.write(json.dumps(dico, indent=4))
+            f.write(json.dumps(dico, indent=2))
         return self.move()
 
     def stream(self):
