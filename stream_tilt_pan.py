@@ -25,7 +25,7 @@ sign = lambda x:-1 if x < 0 else 1
 
 print(lens)
 quit_event = Event()
-signal.signal(signal.SIGINT, lambda: quit_event.set())
+signal.signal(signal.SIGINT, lambda a, b: quit_event.set())
 acc = Accelerometer()
 acc.start()
 
@@ -39,8 +39,16 @@ class Server(object):
 <header>
 <META HTTP-EQUIV="refresh" CONTENT="1; url=/">
 <title> pan={pan} tilt={tilt} EV= {EV}</title>
+<style>
+{box-sizing: border-box;}
+.column {float: left;    width: 50%;    }
+.row:after { content: ""; display: table; clear: both; }
+</style>
 </header>
 <body>
+ <body>
+    <div class="row">
+        <div class="column" style="background-color:#FFB695;">
 <center>
 <p>
 <a href="pan_min" title="pan -90"> |&lt </a>
@@ -62,6 +70,8 @@ class Server(object):
 <p><img src="stream.jpg" width="640" height="480" title="{date_time}"/></p>
 <p><a href="save" title="add position to trajectory">Save pos</a></p>
 </center>
+        </div>
+        <div class="column" style="background-color:#96D1CD;">
 <p> All metadata </p>
 <ul>
 <li>Camera: {revision}</li>
@@ -84,6 +94,9 @@ class Server(object):
 <li>Measured tilt: {meas_tilt}°</li>
 <li>Measured roll: {meas_roll}°</li>
 </ul>
+        </div>
+    </div>
+
 </body>
 </html>
     """
@@ -261,7 +274,7 @@ class Server(object):
 
     def setup_cam(self):
         self.streamout = StreamingOutput()
-        self.cam = PiCamera(resolution=self.resolution, framerate=1, sensor_mode=3)
+        self.cam = PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
         self.cam.start_recording(self.streamout, format='mjpeg')
         self.cam.awb_mode = "off"
         self.cam.awb_gains = (1.0, 1.0)
