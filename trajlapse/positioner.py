@@ -1,11 +1,11 @@
 import time
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from threading import Semaphore
 
 Position = namedtuple("Position", ("pan", "tilt"))
 
 
-class Positionner:
+class Positioner:
     "A class designed to move motors"
 
     def __init__(self, pan, tilt, locks=None):
@@ -35,12 +35,15 @@ class Positionner:
     def goto(self, where):
         """Move the head to a given position
         :param where: Position
+        :return: timestamp before and after move
         """
+        result = OrderedDict()
         if where != self._position:
             pan, tilt = where
             with self.lock:
                 for lock in self.locks:
                     lock.acquire()
+                before = time.time()
                 self.servo_pan.move(pan)
                 self.servo_tilt.move(tilt)
                 dp = abs(self._position.pan - where.pan)
@@ -48,6 +51,14 @@ class Positionner:
                 delay = max(dp * self.delay_60_pan / 60., dt * self.delay_60_tilt / 60.) + 0.1
                 self._position = where
                 time.sleep(delay)
+                after = time.time()
                 for lock in self.locks:
                     lock.release()
+            result["pos_start"] = before
+            result["pos_stop"] = after
+        else:
+            result["pos_start"] = result["pos_stop"] = time.time()
+        result["pan"] = self.servo_pan.get_config()
+        result["tilt"] = self.servo_tilt.get_config()
 
+        return result

@@ -21,7 +21,7 @@ from collections import namedtuple, OrderedDict, deque
 from argparse import ArgumentParser
 from sqlitedict import SqliteDict
 from trajlapse import servo
-from trajlapse.positionner import Position, Positionner
+from trajlapse.positioner import Position, Positioner
 from trajlapse.accelero import Accelerometer
 from trajlapse.camera import CameraSimple
 
@@ -70,7 +70,7 @@ class Trajectory(object):
         self.camera = camera or DummyLockable()
         self.delay_off = delay_off
         self.config = config or []
-        self.positionner = Positionner(servo.pan, servo.tilt, locks=[self.camera.lock, self.accelero.lock])
+        self.positioner = Positioner(servo.pan, servo.tilt, locks=[self.camera.lock, self.accelero.lock])
         if json_file:
             self.load_config(json_file)
         self.default_pos = self.calc_pos(-1)
@@ -105,16 +105,15 @@ class Trajectory(object):
         """move the camera to the position it need to be at a given timestamp"""
         pos = self.calc_pos(when)
         logger.info(pos)
-        self.positionner.goto(pos)
+        self.positioner.goto(pos)
         return pos
 
     def goto_pos(self, pos):
         """Move the camera to the given position
-        Operates usually in a separated thread
+        :param pos: position where to go
+        :return: destination position of the servo with precision and timestamps for the move
 		"""
-        self.positionner.goto(pos)
-        res = OrderedDict([("pan", self.positionner.servo_pan.get_config()),
-                           ("tilt", self.positionner.servo_tilt.get_config())])
+        res = self.positioner.goto(pos)
         return res
 
     def calc_pos(self, when):
@@ -152,7 +151,7 @@ class Trajectory(object):
 
     @property
     def position(self):
-        return self.positionner.position
+        return self.positioner.position
 
 
 class TimeLapse(threading.Thread):
@@ -287,12 +286,15 @@ class TimeLapse(threading.Thread):
     def run(self):
         "Actually does the timelaps"
         # self.camera.set_analysis(self.do_analysis)
-
+        subindex = 0
         while not self.quit_event.is_set():
             metadata = self.camera_queue.get()
             metadata["position"] = self.position
             metadata["gravity"] = self.accelero.get()
             metadata["servo_config"] = self.servo_config
+            metadata["position_index"] = self.frame_idx
+            metadata["position_subindex"] = subindex
+            subindex += 1
             filename = metadata.get("filename")
             self.database[filename] = metadata
             self.camera_queue.task_done()
@@ -301,6 +303,7 @@ class TimeLapse(threading.Thread):
                 self.next_img = now + self.delay
                 next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
                 self.frame_idx += 1
+                subindex = 0
                 if next_pos != self.position:
                     self.servo_config = self.trajectory.goto_pos(next_pos)
                     self.position = next_pos
