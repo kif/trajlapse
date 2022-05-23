@@ -201,7 +201,7 @@ class Server(object):
             self.wb_blue = self.wb_blue[-self.avg_wb:]
         if len(self.histo_ev) > self.avg_ev:
             self.histo_ev = self.histo_ev[-self.avg_ev:]
-        grav = acc.get()
+        grav = self.acc.get()
         dico["gravity"] = grav
         if grav:
             m_tilt = 180.0 * atan2(-grav.y, -grav.z) / pi
@@ -212,8 +212,6 @@ class Server(object):
         dico["meas_roll"] = m_roll
         webpage = self.page.format(**dico)
         self.current_pos = new_pos
-        if quit_event.is_set():
-            sys.exit(0)
         return webpage
 
     def goto_pos(self, pos):
