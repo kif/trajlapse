@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import time
 import sys
 from collections import OrderedDict
 import logging
 import io
-from math import atan2, pi, acos, sqrt
-from threading import Condition, Timer
+from math import atan2, pi
+from threading import Condition, Event
 from argparse import ArgumentParser
 import os
 import json
-from threading import Event
 import signal
 
 from picamera import PiCamera
@@ -20,8 +20,6 @@ from trajlapse import servo
 from trajlapse.positioner import Positioner, Position
 from trajlapse.exposure import lens
 from trajlapse.accelero import Accelerometer
-
-sign = lambda x:-1 if x < 0 else 1
 
 print(lens)
 
@@ -130,7 +128,8 @@ class Server(object):
     def quit(self, *arg, **kwarg):
         self.quit_event.set()
         self.bottle.close()
-        sys.exit()
+        time.sleep(1)
+        sys.exit(0)
 
     def setup_routes(self):
         self.bottle.route('/images/:filename', callback=self.server_static)
