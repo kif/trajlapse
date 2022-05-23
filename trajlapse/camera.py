@@ -43,10 +43,11 @@ def get_isotime(force_time=None):
     if force_time is None:
         force_time = time.time()
     localtime = time.localtime(force_time)
-    gmtime = time.gmtime(force_time)
-    tz_h = localtime.tm_hour - gmtime.tm_hour
-    tz_m = localtime.tm_min - gmtime.tm_min
-    return f"{time.strftime('%Y-%m-%dT%H:%M:%S', localtime)}{tz_h:+03d}:{tz_m:02d}"
+    # gmtime = time.gmtime(force_time)
+    # tz_h = localtime.tm_hour - gmtime.tm_hour
+    # tz_m = localtime.tm_min - gmtime.tm_min
+    # return f"{time.strftime('%Y-%m-%dT%H:%M:%S', localtime)}{tz_h:+03d}:{tz_m:02d}"
+    return time.strftime('%Y-%m-%d-%Hh%Mm%Ss', localtime)
 
 
 class SavGol(object):
@@ -247,8 +248,11 @@ class CameraSimple(threading.Thread):
     def __init__(self, resolution=(4056, 3040), framerate=1, sensor_mode=3,
                  # avg_ev=21, avg_wb=31, histo_ev=None,
                  wb_red=None, wb_blue=None,
-                 quit_event=None, queue=None, config_queue=None,
-                 folder="/tmp", index_callable=None):
+                 quit_event=None, queue=None,
+                 # config_queue=None,
+                 folder="/tmp",
+                 # index_callable=None
+                 ):
         """This thread handles the camera: simple camera saving data to 
         
         """
@@ -260,7 +264,7 @@ class CameraSimple(threading.Thread):
         self.quit_event = quit_event or threading.Event()
         self.folder = folder
         self.queue = queue
-        self.index_callable = index_callable
+        # self.index_callable = index_callable
         self.last_index = -1
         self.last_subindex = -1
         self.lock = threading.Semaphore()
@@ -281,17 +285,17 @@ class CameraSimple(threading.Thread):
         "resume the recording"
         self.lock.release
 
-    def get_filename(self):
-        if callable(self.index_callable):
-            new_index = self.index_callable()
-            if self.last_index == new_index:
-                self.last_subindex += 1
-            else:
-                self.last_subindex = 0
-                self.last_index = new_index
-            return f"{self.last_index:05d}-{self.last_subindex}.jpg"
-        else:
-            return str(get_isotime() + ".jpg")
+    # def get_filename(self):
+    #     if callable(self.index_callable):
+    #         new_index = self.index_callable()
+    #         if self.last_index == new_index:
+    #             self.last_subindex += 1
+    #         else:
+    #             self.last_subindex = 0
+    #             self.last_index = new_index
+    #         return f"{self.last_index:05d}-{self.last_subindex}.jpg"
+    #     else:
+    #         return str(get_isotime() + ".jpg")
 
     def get_config(self):
         config = OrderedDict([("resolution", tuple(self.camera.resolution)),
@@ -344,17 +348,16 @@ class CameraSimple(threading.Thread):
         self.camera.awb_mode = "auto"
         self.camera.exposure_mode = "auto"
         while not self.quit_event.is_set():
-            filename = self.get_filename()
-            fullname = os.path.join(self.folder, filename)
-            print(fullname)
             with self.lock:
                 before = time.time()
+                filename = get_isotime(before)
+                fullname = os.path.join(self.folder, filename)
                 self.camera.capture(fullname)
                 after = time.time()
             metadata = self.get_metadata()
             metadata["filename"] = filename
-            metadata["time_before"] = before
-            metadata["time_after"] = after
+            metadata["camera_start"] = before
+            metadata["camera_stop"] = after
             self.queue.put(metadata)
             time.sleep(1)
         self.camera.close()
