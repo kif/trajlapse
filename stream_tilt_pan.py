@@ -127,7 +127,7 @@ class Server(object):
         self.cam.stop_recording()
         self.cam = self.streamout = None
 
-    def quit(self):
+    def quit(self, *arg, **kwarg):
         self.quit_event.set()
         self.bottle.shutdown()
 
@@ -338,7 +338,7 @@ class Server(object):
     def stream(self):
         """write the stream"""
         try:
-            while not quit_event.is_set():
+            while not self.quit_event.is_set():
                 with self.streamout.condition:
                     self.streamout.condition.wait()
                     frame = self.streamout.frame
