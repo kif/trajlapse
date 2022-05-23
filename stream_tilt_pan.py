@@ -9,6 +9,8 @@ from threading import Condition, Timer
 from argparse import ArgumentParser
 import os
 import json
+from threading import Event
+import signal
 
 from picamera import PiCamera
 import bottle
@@ -22,6 +24,8 @@ from trajlapse.accelero import Accelerometer
 sign = lambda x:-1 if x < 0 else 1
 
 print(lens)
+quit_event = Event()
+signal.signal(signal.SIGINT, lambda: quit_event.set())
 acc = Accelerometer()
 acc.start()
 
@@ -313,7 +317,7 @@ class Server(object):
     def stream(self):
         """write the stream"""
         try:
-            while True:
+            while not quit_event.is_set():
                 with self.streamout.condition:
                     self.streamout.condition.wait()
                     frame = self.streamout.frame
