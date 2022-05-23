@@ -15,7 +15,7 @@ import bottle
 import datetime
 
 from trajlapse import servo
-from trajlapse.postioner import Positioner, Position
+from trajlapse.positioner import Positioner, Position
 from trajlapse.exposure import lens
 from trajlapse.accelero import Accelerometer
 
