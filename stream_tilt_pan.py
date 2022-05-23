@@ -105,7 +105,7 @@ class Server(object):
         self.setup_routes()
         self.quit_event = Event()
         signal.signal(signal.SIGINT, self.quit)
-        self.acc = Accelerometer()
+        self.acc = Accelerometer(quit_event=self.quit_event)
         self.acc.start()
         self.positioner = Positioner(servo.pan, servo.tilt, locks=[self.acc.lock, ])
         self.default_pos = Position(0, 0)
@@ -129,8 +129,8 @@ class Server(object):
         self.quit_event.set()
         self.bottle.close()
         time.sleep(1)
-        raise SystemExit("ended")
-        sys.exit(0)
+        raise SystemExit("Ended by user")
+        # sys.exit(0)
 
     def setup_routes(self):
         self.bottle.route('/images/:filename', callback=self.server_static)
