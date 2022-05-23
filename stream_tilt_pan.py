@@ -129,6 +129,7 @@ class Server(object):
         self.quit_event.set()
         self.bottle.close()
         time.sleep(1)
+        raise SystemExit("ended")
         sys.exit(0)
 
     def setup_routes(self):
