@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
-
+import sys
 from collections import OrderedDict
 import logging
 import io
@@ -130,6 +130,7 @@ class Server(object):
     def quit(self, *arg, **kwarg):
         self.quit_event.set()
         self.bottle.close()
+        sys.exit()
 
     def setup_routes(self):
         self.bottle.route('/images/:filename', callback=self.server_static)
@@ -276,7 +277,7 @@ class Server(object):
 
     def setup_cam(self):
         self.streamout = StreamingOutput()
-        self.cam = PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
+        self.cam = PiCamera(resolution=self.resolution, framerate=30)  # , sensor_mode=3)
         self.cam.start_recording(self.streamout, format='mjpeg')
         self.cam.awb_mode = "auto"
         # self.cam.awb_gains = (1.0, 1.0)
@@ -317,7 +318,7 @@ class Server(object):
         self.trajectory.append(self.current_pos)
         traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10}
                 for i in self.trajectory]
-        camera = OrderedDict((("sensor_mode", 3),
+        camera = OrderedDict((# ("sensor_mode", 3),
                               ("warmup", 10),
                               ("framerate", 1),
                               ("avg_wb", self.avg_wb),
