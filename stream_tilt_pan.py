@@ -1,38 +1,33 @@
-#!/usr/bin/env python
-#coding: utf-8
+#!/usr/bin/env python3
+# coding: utf-8
 
-from __future__ import division, print_function
+from collections import OrderedDict
 import logging
 import io
 from math import atan2, pi, acos, sqrt
 from threading import Condition, Timer
-from picamera import PiCamera
-from PIL import Image
-import os
-import glob
-import bottle
 from argparse import ArgumentParser
-import datetime
-from collections import namedtuple, OrderedDict
+import os
 import json
-import servo
-import time
-from exposure import Exposure
-from accelero import Accelerometer
 
-sign = lambda x: -1 if x < 0 else 1
+from picamera import PiCamera
+import bottle
+import datetime
 
-cam_lens = Exposure()
-print(cam_lens)
+from trajlapse import servo
+from trajlapse.postioner import Positioner, Position
+from trajlapse.exposure import lens
+from trajlapse.accelero import Accelerometer
+
+sign = lambda x:-1 if x < 0 else 1
+
+print(lens)
 acc = Accelerometer()
 acc.start()
 
-
-Position = namedtuple("Position", ("pan", "tilt"))
-
-
 bottle.debug(True)
 root = os.path.dirname(os.path.abspath(__file__))
+
 
 class Server(object):
     page = """
@@ -69,8 +64,8 @@ class Server(object):
 <li>Tilt: {tilt}°</li>
 <li>Pan: {pan}°</li>
 <li>EV: {EV}</li>
-<li>Focal: 2.8mm</li>
-<li>Aperture: F/2.8</li>
+<li>Focal: {focal}mm</li>
+<li>Aperture: F/{aperture}</li>
 <li>speed: {speed} 1/s</li>
 <li>ISO: {iso} </li>
 <li>awb_gains: {awb_gains}</li>
@@ -88,7 +83,8 @@ class Server(object):
 </body>
 </html>
     """
-    def __init__(self, img_dir="images", ip="0.0.0.0", port=80, timer=30):
+
+    def __init__(self, img_dir="images", ip="0.0.0.0", port=80):
         self.img_dir = img_dir
         if not os.path.exists(self.img_dir):
             os.mkdir(self.img_dir)
@@ -98,8 +94,7 @@ class Server(object):
         self.port = port
         self.bottle = bottle.Bottle()
         self.setup_routes()
-        self.servo_tilt = servo.tilt
-        self.servo_pan = servo.pan
+        self.positioner = Positioner(servo.pan, servo.tilt, locks=None)
         self.default_pos = Position(0, 0)
         self.current_pos = None
         self.cam = None
@@ -146,7 +141,7 @@ class Server(object):
 
     def server_static(self, filename):
         return bottle.static_file(filename, self.img_dir)
-    
+
     def index(self):
         return self.move()
 
@@ -160,23 +155,25 @@ class Server(object):
                 new_pos = self.default_pos
             else:
                 new_pos = self.current_pos
-        if new_pos.tilt<-90:
+        if new_pos.tilt < -90:
             new_pos = Position(new_pos.pan, -90)
-        elif new_pos.tilt>90:
+        elif new_pos.tilt > 90:
             new_pos = Position(new_pos.pan, 90)
-        if new_pos.pan <-90:
+        if new_pos.pan < -90:
             new_pos = Position(-90, new_pos.tilt)
-        elif new_pos.pan>180:
+        elif new_pos.pan > 180:
             new_pos = Position(180, new_pos.tilt)
         if new_pos != self.current_pos:
             self.goto_pos(new_pos)
-        
+
         dico = self.capture()
-        dico["tilt"]= new_pos.tilt
-        dico["pan"] =  new_pos.pan
+        dico["focal"] = lens.focal
+        dico["aperture"] = lens.aperture
+        dico["tilt"] = new_pos.tilt
+        dico["pan"] = new_pos.pan
         if dico["EV"] != "?":
             self.histo_ev.append(dico["EV"])
-        if dico["awb_gains"] != [0,0]:
+        if dico["awb_gains"] != [0, 0]:
             red, blue = dico["awb_gains"]
             self.wb_red.append(red)
             self.wb_blue.append(blue)
@@ -207,7 +204,7 @@ class Server(object):
             print(err)
         t = Timer(1.0, self.stop_motors)
         t.start()
-        #stop motors after a second
+        # stop motors after a second
 
     def stop_motors(self):
         try:
@@ -224,7 +221,7 @@ class Server(object):
     def pan_max(self):
         pos = Position(+180, self.current_pos.tilt)
         return self.move(pos)
-    
+
     def tilt_min(self):
         pos = Position(self.current_pos.pan, -90)
         return self.move(pos)
@@ -234,19 +231,19 @@ class Server(object):
         return self.move(pos)
 
     def pan_sub1(self):
-        pos = Position(self.current_pos.pan -1 , self.current_pos.tilt)
+        pos = Position(self.current_pos.pan - 1 , self.current_pos.tilt)
         return self.move(pos)
 
     def pan_add1(self):
         pos = Position(self.current_pos.pan + 1, self.current_pos.tilt)
         return self.move(pos)
-    
+
     def tilt_sub1(self):
-        pos = Position(self.current_pos.pan, self.current_pos.tilt -1)
+        pos = Position(self.current_pos.pan, self.current_pos.tilt - 1)
         return self.move(pos)
 
     def tilt_add1(self):
-        pos = Position(self.current_pos.pan, self.current_pos.tilt +1)
+        pos = Position(self.current_pos.pan, self.current_pos.tilt + 1)
         return self.move(pos)
 
     def pan_sub10(self):
@@ -256,7 +253,7 @@ class Server(object):
     def pan_add10(self):
         pos = Position(self.current_pos.pan + 10, self.current_pos.tilt)
         return self.move(pos)
-    
+
     def tilt_sub10(self):
         pos = Position(self.current_pos.pan, self.current_pos.tilt - 10)
         return self.move(pos)
@@ -280,7 +277,6 @@ class Server(object):
         self.cam.awb_mode = "off"
         self.cam.awb_gains = (1.0, 1.0)
 
- 
     def capture(self):
         now = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%Mm%Ss")
         dico = {"iso": float(self.cam.iso),
@@ -295,21 +291,21 @@ class Server(object):
                 "date_time": now}
         gain = dico["digital_gain"]
         if gain == 0:
-            gain == 1
+            gain = 1
         gain *= dico["analog_gain"]
-        if dico["exposure_speed"] ==0:
+        if dico["exposure_speed"] == 0:
             dico["speed"] = "?"
         else:
-            dico["speed"] = 1e6/dico["exposure_speed"]
-        if gain == 0 or dico["exposure_speed"] ==0:
+            dico["speed"] = 1e6 / dico["exposure_speed"]
+        if gain == 0 or dico["exposure_speed"] == 0:
             dico["EV"] = "?"
         else:
-            dico["EV"] = cam_lens.calc_EV(dico["speed"], gain=gain)
+            dico["EV"] = lens.calc_EV(dico["speed"], gain=gain)
         return dico
 
     def save(self):
         self.trajectory.append(self.current_pos)
-        traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10} 
+        traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10}
                 for i in self.trajectory]
         camera = OrderedDict((("sensor_mode", 3),
                               ("framerate", 1),
@@ -324,7 +320,7 @@ class Server(object):
                             ("camera", camera),
                             ))
 
-        with open(self.traj_file,"w") as f:
+        with open(self.traj_file, "w") as f:
             f.write(json.dumps(dico, indent=4))
         return self.move()
 
@@ -335,13 +331,14 @@ class Server(object):
                 with self.streamout.condition:
                     self.streamout.condition.wait()
                     frame = self.streamout.frame
-                    return frame 
+                    return frame
         except Exception as e:
             logging.warning('Removed streaming client: %s', e)
-                            
+
 
 class StreamingOutput(object):
     """This class handles the stream"""
+
     def __init__(self):
         self.frame = None
         self.buffer = io.BytesIO()
@@ -368,5 +365,6 @@ def main():
     server = Server(img_dir=args.directory, ip=args.ip, port=args.port)
     server.start()
 
-if __name__== '__main__' :
+
+if __name__ == '__main__':
     main()
