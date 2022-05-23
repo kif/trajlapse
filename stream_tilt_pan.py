@@ -24,10 +24,6 @@ from trajlapse.accelero import Accelerometer
 sign = lambda x:-1 if x < 0 else 1
 
 print(lens)
-quit_event = Event()
-signal.signal(signal.SIGINT, lambda a, b: quit_event.set())
-acc = Accelerometer()
-acc.start()
 
 bottle.debug(True)
 root = os.path.dirname(os.path.abspath(__file__))
@@ -40,9 +36,7 @@ class Server(object):
 <META HTTP-EQUIV="refresh" CONTENT="1; url=/">
 <title> pan={pan} tilt={tilt} EV= {EV}</title>
 <style>
-{box-sizing: border-box;}
-.column {float: left;    width: 50%;    }
-.row:after { content: ""; display: table; clear: both; }
+{style}
 </style>
 </header>
 <body>
@@ -111,7 +105,11 @@ class Server(object):
         self.port = port
         self.bottle = bottle.Bottle()
         self.setup_routes()
-        self.positioner = Positioner(servo.pan, servo.tilt, locks=[acc.lock, ])
+        self.quit_event = Event()
+        signal.signal(signal.SIGINT, self.quit)
+        self.acc = Accelerometer()
+        self.acc.start()
+        self.positioner = Positioner(servo.pan, servo.tilt, locks=[self.acc.lock, ])
         self.default_pos = Position(0, 0)
         self.current_pos = None
         self.cam = None
@@ -128,6 +126,10 @@ class Server(object):
     def __del__(self):
         self.cam.stop_recording()
         self.cam = self.streamout = None
+
+    def quit(self):
+        self.quit_event.set()
+        self.bottle.shutdown()
 
     def setup_routes(self):
         self.bottle.route('/images/:filename', callback=self.server_static)
@@ -210,6 +212,8 @@ class Server(object):
         dico["meas_roll"] = m_roll
         webpage = self.page.format(**dico)
         self.current_pos = new_pos
+        if quit_event.is_set():
+            sys.exit(0)
         return webpage
 
     def goto_pos(self, pos):
@@ -290,7 +294,13 @@ class Server(object):
                 "framerate": float(self.cam.framerate),
                 "revision": self.cam.revision,
                 "shutter_speed": float(self.cam.shutter_speed),
-                "date_time": now}
+                "date_time": now,
+                "style": \
+"""{box-sizing: border-box;}
+.column {float: left; width: 50%;}
+.row:after { content: ""; display: table; clear: both; }
+}"""
+                }
         gain = dico["digital_gain"]
         if gain == 0:
             gain = 1
