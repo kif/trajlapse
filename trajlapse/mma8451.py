@@ -26,7 +26,7 @@ BW_RATE_100HZ = 0x3
 BW_RATE_50HZ = 0x4
 BW_RATE_12_5HZ = 0x5
 BW_RATE_6_25HZ = 0x6
-BW_RATE_1_56HZ = 0x7   # frequency for Low power
+BW_RATE_1_56HZ = 0x7  # frequency for Low power
 
 RANGE_2G = 0x00
 RANGE_4G = 0x01
@@ -87,7 +87,8 @@ ORIENTATION_POS = {
 }
 BCM2708_COMBINED_PARAM_PATH = '/sys/module/i2c_bcm2708/parameters/combined'
 BOARD_CPUINFO = '/proc/cpuinfo'
-DELAY = 0.01 #s
+DELAY = 0.01  # s
+
 
 class MMA8451:
 
@@ -104,8 +105,8 @@ class MMA8451:
         # **********WARNING*******************
         # axes data seems to have lot of noise and its a hack.
 
-        #os.chmod(BCM2708_COMBINED_PARAM_PATH, 666)
-        #os.system('echo -n 1 > {!s}'.format(BCM2708_COMBINED_PARAM_PATH))
+        # os.chmod(BCM2708_COMBINED_PARAM_PATH, 666)
+        # os.system('echo -n 1 > {!s}'.format(BCM2708_COMBINED_PARAM_PATH))
 
         # ************************************
 
@@ -127,8 +128,9 @@ class MMA8451:
     def get_pi_revision(self):
         """ get pi revision. """
         # select the correct i2c bus for this revision of Raspberry Pi
-        revision = ([l[12:-1] for l in open(BOARD_CPUINFO, 'r').readlines()
-                     if l[:8] == "Revision"] + ['0000'])[0]
+        with open(BOARD_CPUINFO, 'r') as rf:
+            revision = ([l[12:-1] for l in rf.readlines()
+                         if l[:8] == "Revision"] + ['0000'])[0]
         bus_num = 1 if int(revision, 16) >= 4 else 0
         return bus_num
 
@@ -233,7 +235,7 @@ class MMA8451:
         self.write_byte_data(MMA8451_REG_CTRL_REG2, MMA8451_RESET)
         while self.read_byte_data(MMA8451_REG_CTRL_REG2) != 0:
             logger.debug('trying to reset the sensor.')
-            time.sleep(10*DELAY)
+            time.sleep(10 * DELAY)
 
     def set_range(self, value):
         """ Set the range for the sensor.
@@ -305,7 +307,7 @@ class MMA8451:
 
 
 if __name__ == "__main__":
-    mma8451 = MMA8451(sensor_range=RANGE_2G,data_rate=BW_RATE_6_25HZ, debug=False)
+    mma8451 = MMA8451(sensor_range=RANGE_2G, data_rate=BW_RATE_6_25HZ, debug=False)
     mma8451.set_resolution()
     while True:
         axes = mma8451.get_axes_measurement()

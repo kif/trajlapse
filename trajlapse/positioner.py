@@ -62,3 +62,12 @@ class Positioner:
         result["tilt"] = self.servo_tilt.get_config()
 
         return result
+
+    def stop_motors(self):
+        "Switch off both motors"
+        try:
+            self.servo_pan.off()
+            self.servo_tilt.off()
+        except IOError as err:
+            print(err)
+
