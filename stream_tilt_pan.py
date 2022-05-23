@@ -130,7 +130,7 @@ class Server(object):
         self.bottle.close()
         time.sleep(1)
         raise SystemExit("Ended by user")
-        # sys.exit(0)
+        sys.exit(1)
 
     def setup_routes(self):
         self.bottle.route('/images/:filename', callback=self.server_static)
