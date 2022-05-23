@@ -129,7 +129,7 @@ class Server(object):
 
     def quit(self, *arg, **kwarg):
         self.quit_event.set()
-        self.bottle.shutdown()
+        self.bottle.close()
 
     def setup_routes(self):
         self.bottle.route('/images/:filename', callback=self.server_static)
@@ -202,10 +202,10 @@ class Server(object):
         if len(self.histo_ev) > self.avg_ev:
             self.histo_ev = self.histo_ev[-self.avg_ev:]
         grav = self.acc.get()
-        dico["gravity"] = grav
+        dico["gravity"] = grav[:3]
         if grav:
-            m_tilt = 180.0 * atan2(-grav.y, -grav.z) / pi
-            m_roll = 180.0 * atan2(-grav.x, -grav.z) / pi
+            m_tilt = round(180.0 * atan2(-grav.y, -grav.z) / pi, 2)
+            m_roll = round(180.0 * atan2(-grav.x, -grav.z) / pi, 2)
         else:
             m_roll = m_tilt = "?"
         dico["meas_tilt"] = m_tilt
@@ -278,8 +278,8 @@ class Server(object):
         self.streamout = StreamingOutput()
         self.cam = PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
         self.cam.start_recording(self.streamout, format='mjpeg')
-        self.cam.awb_mode = "off"
-        self.cam.awb_gains = (1.0, 1.0)
+        self.cam.awb_mode = "auto"
+        # self.cam.awb_gains = (1.0, 1.0)
 
     def capture(self):
         now = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%Mm%Ss")
