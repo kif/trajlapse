@@ -23,7 +23,7 @@ from trajlapse.accelero import Accelerometer
 
 print(lens)
 
-bottle.debug(True)
+# bottle.debug(True)
 root = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -158,6 +158,8 @@ class Server(object):
                    'Pragma': 'no-cache',
                    'Content-Type': 'multipart/x-mixed-replace; boundary=FRAME'
                    }
+        for k, v in headers.items():
+            self.bottle.response.add_header(k, v)
 
     def server_static(self, filename):
         return bottle.static_file(filename, self.img_dir)
