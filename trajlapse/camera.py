@@ -249,9 +249,9 @@ class CameraSimple(threading.Thread):
                  # avg_ev=21, avg_wb=31, histo_ev=None,
                  wb_red=None, wb_blue=None,
                  quit_event=None, queue=None,
-                 # config_queue=None,
+                 config_queue=None,
                  folder="/tmp",
-                 # index_callable=None
+                 index_callable=None
                  ):
         """This thread handles the camera: simple camera saving data to 
         
@@ -317,9 +317,9 @@ class CameraSimple(threading.Thread):
         self.camera.sensor_mode = dico.get("sensor_mode", self.camera.sensor_mode)
         self.wb_red = dico.get("wb_red", self.wb_red)
         self.wb_blue = dico.get("wb_blue", self.wb_blue)
-        self.histo_ev = dico.get("histo_ev", self.histo_ev)
-        self.avg_ev = dico.get("avg_ev", self.avg_ev)
-        self.avg_wb = dico.get("avg_wb", self.avg_wb)
+        #self.histo_ev = dico.get("histo_ev", self.histo_ev)
+        #self.avg_ev = dico.get("avg_ev", self.avg_ev)
+        #self.avg_wb = dico.get("avg_wb", self.avg_wb)
         self.folder = dico.get("folder", self.folder)
 
     def warm_up(self, delay=10):
@@ -350,7 +350,7 @@ class CameraSimple(threading.Thread):
         while not self.quit_event.is_set():
             with self.lock:
                 before = time.time()
-                filename = get_isotime(before)
+                filename = get_isotime(before)+".jpg"
                 fullname = os.path.join(self.folder, filename)
                 self.camera.capture(fullname)
                 after = time.time()
