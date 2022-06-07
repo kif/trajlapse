@@ -17,13 +17,15 @@ class Exposure:
     """Class for calculating absolute Exposure Value
     from speed & gain et vice-versa"""
 
-    def __init__(self, focal=4.0, aperture=1.4):
+    def __init__(self, focal=4.0, aperture=1.4, gain4iso100=1.0):
         """
         :param focal: Focal length in mm
-        :param aperture
+        :param aperture: 1/f apeture of the lens
+        :param gain4iso100: 1.00 for v1, 1.81 for v2 and 2.317 for HQ
         """
         self.focal = focal
         self.aperture = aperture
+        self.gain4iso100 = gain4iso100
 
     def __repr__(self):
         return "Exposure calculation for lens with f'=%smm and aperture F/%s" % (self.focal, self.aperture)
@@ -37,15 +39,15 @@ class Exposure:
         :return:  the absolute exposure value
         """
         if gain is None:
-            gain = iso / 100.
-        return log(1.0 * self.aperture ** 2 * speed / gain , 2.0)
+            gain = iso / 100
+        return log(self.aperture**2 * speed / (gain*self.gain4iso100), 2.0)
 
     def calc_speed(self, ev):
-        """Calculate the speed needed at given exposure value, in 1/s"""
-        return pow(2.0, ev) / self.aperture ** 2
+        """Calculate the speed needed at given exposure value, in 1/s, for iso100"""
+        return pow(2.0, ev) / (self.aperture ** 2)
 
 
-lens = Exposure()
+lens = Exposure(focal=4.0, aperture=1.4, gain4iso100=2.317)
 
 if __name__ == "__main__":
 
