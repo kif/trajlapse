@@ -19,6 +19,7 @@ from PIL import Image
 from picamera import PiCamera
 from scipy.signal import convolve, gaussian, savgol_coeffs
 from .exposure import lens
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("camera")
 import signal
 try:
@@ -246,7 +247,7 @@ class CameraSimple(threading.Thread):
     "A simple camera class which continuously saves images"
 
     def __init__(self, resolution=(4056, 3040), framerate=1, sensor_mode=3,
-                 # avg_ev=21, avg_wb=31, histo_ev=None,
+                 avg_ev=21, avg_wb=31, histo_ev=None,
                  wb_red=None, wb_blue=None,
                  quit_event=None, queue=None,
                  config_queue=None,
@@ -256,14 +257,19 @@ class CameraSimple(threading.Thread):
         """This thread handles the camera: simple camera saving data to 
         
         """
+        self.avg_ev = avg_ev
+        self.avg_wb = avg_wb
+
+        self.histo_ev = histo_ev or []
         self.wb_red = wb_red or []
         self.wb_blue = wb_blue or []
-
+        
         threading.Thread.__init__(self, name="Camera")
         signal.signal(signal.SIGINT, self.quit)
         self.quit_event = quit_event or threading.Event()
+        self.record_event = threading.Event()
         self.folder = folder
-        self.queue = queue
+        self.queue = queue or Queue()
         # self.index_callable = index_callable
         self.last_index = -1
         self.last_subindex = -1
@@ -285,28 +291,19 @@ class CameraSimple(threading.Thread):
         "resume the recording"
         self.lock.release
 
-    # def get_filename(self):
-    #     if callable(self.index_callable):
-    #         new_index = self.index_callable()
-    #         if self.last_index == new_index:
-    #             self.last_subindex += 1
-    #         else:
-    #             self.last_subindex = 0
-    #             self.last_index = new_index
-    #         return f"{self.last_index:05d}-{self.last_subindex}.jpg"
-    #     else:
-    #         return str(get_isotime() + ".jpg")
+    def shoot(self):
+        self.record_event.set()
 
     def get_config(self):
         config = OrderedDict([("resolution", tuple(self.camera.resolution)),
                               ("framerate", float(self.camera.framerate)),
                               ("sensor_mode", self.camera.sensor_mode),
-                              # ("avg_ev", self.avg_ev),
-                              # ("avg_wb", self.avg_wb),
-                              # ("hist_ev", self.histo_ev),
-                              # ("wb_red", self.wb_red),
-                              # ("wb_blue", self.wb_blue)
-
+                              ("avg_ev", self.avg_ev),
+                              ("avg_wb", self.avg_wb),
+                              ("hist_ev", self.histo_ev),
+                              ("wb_red", self.wb_red),
+                              ("wb_blue", self.wb_blue),
+                              ("folder", self.folder)
                               ]
         )
         return config
@@ -317,49 +314,53 @@ class CameraSimple(threading.Thread):
         self.camera.sensor_mode = dico.get("sensor_mode", self.camera.sensor_mode)
         self.wb_red = dico.get("wb_red", self.wb_red)
         self.wb_blue = dico.get("wb_blue", self.wb_blue)
-        #self.histo_ev = dico.get("histo_ev", self.histo_ev)
-        #self.avg_ev = dico.get("avg_ev", self.avg_ev)
-        #self.avg_wb = dico.get("avg_wb", self.avg_wb)
+        self.histo_ev = dico.get("histo_ev", self.histo_ev)
+        self.avg_ev = dico.get("avg_ev", self.avg_ev)
+        self.avg_wb = dico.get("avg_wb", self.avg_wb)
         self.folder = dico.get("folder", self.folder)
 
     def warm_up(self, delay=10):
         "warm up the camera"
         end = time.time() + delay
-        logger.info("warming up the camera for %ss", delay)
-        framerate = self.camera.framerate
-        self.camera.awb_mode = "auto"
-        self.camera.exposure_mode = "auto"
-        self.camera.framerate = 10
+        logger.info(f"warming up the camera for {delay}s")
+        self.set_exposure_auto()
         while time.time() < end:
-            rg, bg = self.camera.awb_gains
-            rg = float(rg)
-            bg = float(bg)
-            if rg == 0.0:
-                rg = 1.0
-            if bg == 0.0:
-                bg = 1.0
-            self.wb_red.append(rg)
-            self.wb_blue.append(bg)
-            time.sleep(1)
-        self.camera.framerate = framerate
+            try:
+                self.collect_exposure()
+            except ZeroDivisionError:
+                end = time.time() + delay
+                continue
+            time.sleep(1.0/self.camera.framerate)
+        self.wb_red = [self.wb_red[-1]]*self.avg_wb
+        self.wb_blue = [self.wb_blue[-1]]*self.avg_wb
+        self.histo_ev = [self.histo_ev[-1]]*self.avg_ev
 
     def run(self):
         "main thread activity"
-        self.camera.awb_mode = "auto"
-        self.camera.exposure_mode = "auto"
+        self.set_exposure_auto()
         while not self.quit_event.is_set():
-            with self.lock:
-                before = time.time()
-                filename = get_isotime(before)+".jpg"
-                fullname = os.path.join(self.folder, filename)
-                self.camera.capture(fullname)
-                after = time.time()
-            metadata = self.get_metadata()
-            metadata["filename"] = filename
-            metadata["camera_start"] = before
-            metadata["camera_stop"] = after
-            self.queue.put(metadata)
-            time.sleep(1)
+            if self.record_event.is_set():
+                #record !
+                self.set_exposure_fixed()
+                with self.lock:
+                    before = time.time()
+                    filename = get_isotime(before)+".jpg"
+                    fullname = os.path.join(self.folder, filename)
+                    self.camera.capture(fullname)
+                    after = time.time()
+                metadata = self.get_metadata()
+                self.set_exposure_auto()
+                metadata["filename"] = filename
+                metadata["camera_start"] = before
+                metadata["camera_stop"] = after
+                self.queue.put(metadata)
+                self.record_event.clear()
+            else:
+                time.sleep(1.0/self.camera.framerate)
+            try:
+                self.collect_exposure()
+            except ZeroDivisionError:
+                continue
         self.camera.close()
 
     def get_metadata(self):
@@ -378,11 +379,78 @@ class CameraSimple(threading.Thread):
                     "resolution": self.camera.resolution}
         if metadata['revision'] == "imx219":
             metadata['iso_calc'] = 54.347826086956516 * metadata["analog_gain"] * metadata["digital_gain"]
+        if metadata['revision'] == "imx477":
+            metadata['iso_calc'] = 40 * metadata["analog_gain"] * metadata["digital_gain"]
         else:
             metadata['iso_calc'] = 100.0 * metadata["analog_gain"] * metadata["digital_gain"]
         return metadata
 
 
+    def update_expo(self):
+        """This method updates the white balance, exposure time and gain
+        according to the history
+        """
+        # return #disabled for now
+        if len(self.wb_red) * len(self.wb_blue) == 0:
+            return
+        if len(self.wb_red) > self.avg_wb:
+            self.wb_red = self.wb_red[-self.avg_wb:]
+            self.wb_blue = self.wb_blue[-self.avg_wb:]
+        if len(self.histo_ev) > self.avg_ev:
+            self.histo_ev = self.histo_ev[-self.avg_ev:]
+        self.camera.awb_gains = (savgol0(self.wb_red),
+                                 savgol0(self.wb_blue))
+        ev = savgol1(self.histo_ev)
+        speed = lens.calc_speed(ev)
+        framerate = float(self.camera.framerate)
+        logger.info("Update speed: %s %s", speed, framerate)
+
+        if speed > framerate:
+            self.camera.shutter_speed = int(1000000. / framerate / speed)
+            self.camera.iso = 100
+        elif speed > framerate * 2:
+            self.camera.shutter_speed = int(2000000. / framerate / speed)
+            self.camera.iso = 200
+        elif speed > framerate * 4:
+            self.camera.shutter_speed = int(4000000. / framerate / speed)
+            self.camera.iso = 400
+        else:
+            self.camera.shutter_speed = min(int(8000000. / framerate / speed), int(1000000 / framerate))
+            self.camera.iso = 800
+#        #TODO: how to change framerate ? maybe start with low
+
+    def set_exposure_auto(self):
+        self.camera.shutter_speed = 0
+#        self.camera.iso = 0
+        self.camera.awb_mode = "auto" #alternative: off
+        self.camera.meter_mode = 'average' #'backlit' #"average" ?
+        self.camera.exposure_mode = "auto"
+
+    def set_exposure_fixed(self):
+        self.update_expo()
+        self.camera.awb_mode = "off" 
+        self.camera.exposure_mode = "off"
+
+    def collect_exposure(self):
+        self.histo_ev.append(self.get_exposure())
+        rg, bg = self.camera.awb_gains
+        rg = float(rg)
+        bg = float(bg)
+        self.wb_red.append(1.0 if rg == 0 else rg)
+        self.wb_blue.append(1.0 if bg == 0 else bg)
+
+    def get_exposure(self):
+        ag = float(self.camera.analog_gain)
+        dg = float(self.camera.digital_gain)
+        es = self.camera.exposure_speed
+        gain = float(ag * dg)
+        speed = 1e6/es
+        ev = lens.calc_EV(speed, gain)
+        logger.debug(f"ag: {ag} dg: {dg} es: {es} speed {speed} ev: {ev}")
+        return ev
+        
+        
+        
 class Camera(threading.Thread):
     "A class for acquiring continusly images..."
 
@@ -721,3 +789,4 @@ class Analyzer(threading.Thread):
             self.queue.task_done()
             logger.info("Analysis of frame #%i took: %.3fs, delay since acquisition: %.3fs", frame.index, now - t0, now - frame.timestamp)
 
+    
