@@ -19,7 +19,7 @@ from PIL import Image
 from picamera import PiCamera
 from scipy.signal import convolve, gaussian, savgol_coeffs
 from .exposure import lens
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("camera")
 import signal
 try:
@@ -421,7 +421,7 @@ class CameraSimple(threading.Thread):
 
     def set_exposure_auto(self):
         self.camera.shutter_speed = 0
-        self.camera.iso = 0
+#        self.camera.iso = 0
         self.camera.awb_mode = "auto" #alternative: off
         self.camera.meter_mode = 'average' #'backlit' #"average" ?
         self.camera.exposure_mode = "auto"
@@ -446,7 +446,7 @@ class CameraSimple(threading.Thread):
         gain = float(ag * dg)
         speed = 1e6/es
         ev = lens.calc_EV(speed, gain)
-        print(f"ag: {ag} dg: {dg} es: {es} speed {speed} ev: {ev}")
+        logger.debug(f"ag: {ag} dg: {dg} es: {es} speed {speed} ev: {ev}")
         return ev
         
         
