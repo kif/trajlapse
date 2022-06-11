@@ -188,16 +188,14 @@ class TimeLapse(threading.Thread):
         # self.servo_status = None
         self.camera = CameraSimple(resolution=resolution,
                                    framerate=framerate,
-                                   # avg_ev=avg_ev,
-                                   # avg_wb=avg_awb,
-                                   # histo_ev=None,
-                                   # wb_red=None,
-                                   # wb_blue=None,
+                                   avg_ev=avg_ev,
+                                   avg_wb=avg_awb,
+                                   histo_ev=None,
+                                   wb_red=None,
+                                   wb_blue=None,
                                    queue=self.camera_queue,
-                                   #config_queue=self.config_queue,
                                    quit_event=self.quit_event,
                                    folder=self.folder,
-                                   #index_callable=self.get_index
                                    )
 
         self.trajectory = Trajectory(accelero=self.accelero, camera=self.camera, json_file=config_file)
@@ -205,19 +203,6 @@ class TimeLapse(threading.Thread):
         self.load_config(config_file)
         self.camera.warm_up(self.warmup)
 
-        # for i in range(self.pool_size_savers):
-        #     saver = Saver(folder=self.folder,
-        #                   queue=self.saving_queue,
-        #                   quit_event=self.quit_event)
-        #     saver.start()
-        #     self.pool_of_savers.append(saver)
-        #
-        # for i in range(self.pool_size_analyzer):
-        #     analyzer = Analyzer(frame_queue=self.analysis_queue,
-        #                          config_queue=self.config_queue,
-        #                          quit_event=self.quit_event)
-        #     analyzer.start()
-        #     self.pool_of_analyzers.append(analyzer)
         self.position = self.trajectory.goto(self.delay)
         self.camera.start()
 
@@ -286,31 +271,33 @@ class TimeLapse(threading.Thread):
     def run(self):
         "Actually does the timelaps"
         # self.camera.set_analysis(self.do_analysis)
-        subindex = 0
         while not self.quit_event.is_set():
-            metadata = self.camera_queue.get()
-            metadata["position"] = self.position
-            metadata["gravity"] = self.accelero.get()
-            metadata["servo_config"] = self.servo_config
-            metadata["position_index"] = self.frame_idx
-            metadata["position_subindex"] = subindex
-            subindex += 1
-            filename = metadata.get("filename")
-            self.database[filename] = metadata
-            self.camera_queue.task_done()
-            now = time.time()
-            if now >= self.next_img:
-                self.next_img = now + self.delay
+            if time.time() >= self.next_img:
+                self.camera.shoot()
+                logger.info(f"Frame #{self.frame_idx:05d}")
+                metadata = self.camera_queue.get()
+                metadata["position"] = self.position
+                metadata["gravity"] = self.accelero.get()
+                metadata["servo_config"] = self.servo_config
+                metadata["position_index"] = self.frame_idx
+                filename = metadata.get("filename")
+                self.database[filename] = metadata
+                self.camera_queue.task_done()
+                #next image
+                now = time.time()
+                next_img = self.next_img + self.delay
+                self.next_img = now + self.delay if now>next_img else next_img
                 next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
+                logger.debug(f"move to next_pos {next_pos}")
                 self.frame_idx += 1
-                subindex = 0
                 if next_pos != self.position:
                     self.servo_config = self.trajectory.goto_pos(next_pos)
                     self.position = next_pos
-            logger.info(f"Frame #{self.frame_idx:05d}")
-            if self.frame_idx % 10 == 0:
-                self.database.commit()
-                self.save_config(self.frame_idx)
+                if self.frame_idx % 10 == 0:
+                    self.database.commit()
+                    self.save_config(self.frame_idx)
+            else:
+                time.sleep(0.1)
 
 
 if __name__ == "__main__":

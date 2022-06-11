@@ -60,7 +60,7 @@ class SavGol(object):
             l -= 1
         else:
             lst = numpy.array(lst)
-        if len(lst) < self.order:
+        if len(lst) <= self.order:
             return lst[-1]
         if l not in self.cache:
             self.cache[l] = savgol_coeffs(l, self.order, pos=0)
@@ -149,6 +149,10 @@ class CameraSimple(threading.Thread):
         end = time.time() + delay
         logger.info(f"warming up the camera for {delay}s")
         self.set_exposure_auto()
+        #backup
+        wb_red = self.wb_red[:]
+        wb_blue = self.wb_blue[:]
+        histo_ev = self.histo_ev[:]
         while time.time() < end:
             try:
                 self.collect_exposure()
@@ -157,9 +161,9 @@ class CameraSimple(threading.Thread):
                 continue
             time.sleep(1.0 / self.camera.framerate)
         # keep only last value
-        self.wb_red = self.wb_red[-1:]
-        self.wb_blue = self.wb_blue[-1:]
-        self.histo_ev = self.histo_ev[-1:]
+        self.wb_red = wb_red + self.wb_red[-1:]
+        self.wb_blue = wb_blue + self.wb_blue[-1:]
+        self.histo_ev = histo_ev + self.histo_ev[-1:]
 
     def run(self):
         "main thread activity"
@@ -256,10 +260,12 @@ class CameraSimple(threading.Thread):
         self.camera.exposure_mode = "off"
 
     def collect_exposure(self):
-        self.histo_ev.append(self.get_exposure())
+        ev = self.get_exposure()
+        self.histo_ev.append(ev)
         rg, bg = self.camera.awb_gains
         self.wb_red.append(1.0 if rg == 0 else float(rg))
         self.wb_blue.append(1.0 if bg == 0 else float(bg))
+        #return ev,rg,bg
 
     def get_exposure(self):
         ag = float(self.camera.analog_gain)

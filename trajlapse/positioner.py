@@ -48,12 +48,14 @@ class Positioner:
                 self.servo_tilt.move(tilt)
                 dp = abs(self._position.pan - where.pan)
                 dt = abs(self._position.tilt - where.tilt)
-                delay = max(dp * self.delay_60_pan / 60., dt * self.delay_60_tilt / 60.) + 0.1
+                delay = max(dp * self.delay_60_pan / 60., dt * self.delay_60_tilt / 60.) + 1.0
                 self._position = where
                 time.sleep(delay)
                 after = time.time()
+                self.stop_motors()
                 for lock in self.locks:
                     lock.release()
+
             result["pos_start"] = before
             result["pos_stop"] = after
         else:
