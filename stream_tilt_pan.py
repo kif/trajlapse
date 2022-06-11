@@ -59,7 +59,7 @@ class Server(object):
 <a href="tilt_+10" title="tilt += 10"> &gt&gt </a>
 <a href="tilt_max" title="tilt +90"> &gt| </a>
 </p>
-<p><img src="stream.jpg" width="800" height="600" title="{date_time}"/></p>
+<p><img src="stream.jpg" title="{date_time}"/></p>
 <p><a href="save" title="add position to trajectory">Save pos</a></p>
 </center>
         </div>
@@ -73,7 +73,7 @@ class Server(object):
 <li>Focal: {focal}mm</li>
 <li>Aperture: F/{aperture}</li>
 <li>speed: {speed} 1/s</li>
-<li>ISO: {iso} </li>
+<li>ISO: {iso} | {iso_calc}</li>
 <li>awb_gains: {awb_gains}</li>
 <li>analog_gain: {analog_gain}</li>
 <li>digital_gain: {digital_gain}</li>
@@ -112,7 +112,7 @@ class Server(object):
         self.current_pos = None
         self.camera = None
         self.streamout = None
-        self.resolution = (800, 600)
+        self.resolution = (1920, 1080)# (640,480)#(800, 600)
         self.avg_wb = 200
         self.avg_ev = 200
         self.histo_ev = []
@@ -280,19 +280,20 @@ class Server(object):
 
     def setup_cam(self):
         self.streamout = StreamingOutput()
-        self.camera= PiCamera(resolution=self.resolution, framerate=30)  # , sensor_mode=3)
+        self.camera= PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
         self.camera.awb_mode = "auto"
         self.camera.exposure_mode= "nightpreview"
         self.camera.start_recording(self.streamout, format='mjpeg')
 
     def get_metadata(self):
+        ces = float(self.camera.exposure_speed)
         metadata = {"iso": float(self.camera.iso),
                     "analog_gain": float(self.camera.analog_gain),
                     "awb_gains": [float(i) for i in self.camera.awb_gains],
                     "digital_gain": float(self.camera.digital_gain),
                     "exposure_compensation": float(self.camera.exposure_compensation),
-                    "exposure_speed": float(self.camera.exposure_speed),
-                    "speed": 1e6/float(self.camera.exposure_speed),
+                    "exposure_speed": ces,
+                    "speed": 1e6/ces if ces else "?",
                     "exposure_mode": self.camera.exposure_mode,
                     "framerate": float(self.camera.framerate),
                     "revision": self.camera.revision,
@@ -307,8 +308,8 @@ class Server(object):
         else:
             metadata['iso_calc'] = 100.0 * metadata["analog_gain"] * metadata["digital_gain"]
         try:
-            metadata['Ev'] = lens.calc_EV( 1e6 / metadata["shutter_speed"], metadata["digital_gain"]*metadata["analog_gain"])
-        except:
+            metadata['Ev'] = lens.calc_EV( 1e6 / ces, metadata["digital_gain"]*metadata["analog_gain"])
+        except ZeroDivisionError:
             metadata["Ev"] = "?"
         return metadata
 
