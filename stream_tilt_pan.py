@@ -23,7 +23,7 @@ from trajlapse.accelero import Accelerometer
 
 print(lens)
 
-# bottle.debug(True)
+bottle.debug(True)
 root = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -32,7 +32,7 @@ class Server(object):
 <html>
 <header>
 <META HTTP-EQUIV="refresh" CONTENT="1; url=/">
-<title> pan={pan} tilt={tilt} EV= {EV}</title>
+<title> pan={pan} tilt={tilt} Ev= {Ev}</title>
 <style>
 {style}
 </style>
@@ -59,7 +59,7 @@ class Server(object):
 <a href="tilt_+10" title="tilt += 10"> &gt&gt </a>
 <a href="tilt_max" title="tilt +90"> &gt| </a>
 </p>
-<p><img src="stream.jpg" width="640" height="480" title="{date_time}"/></p>
+<p><img src="stream.jpg" width="800" height="600" title="{date_time}"/></p>
 <p><a href="save" title="add position to trajectory">Save pos</a></p>
 </center>
         </div>
@@ -69,7 +69,7 @@ class Server(object):
 <li>Camera: {revision}</li>
 <li>Tilt: {tilt}°</li>
 <li>Pan: {pan}°</li>
-<li>EV: {EV}</li>
+<li>EV: {Ev}</li>
 <li>Focal: {focal}mm</li>
 <li>Aperture: F/{aperture}</li>
 <li>speed: {speed} 1/s</li>
@@ -110,9 +110,9 @@ class Server(object):
         self.positioner = Positioner(servo.pan, servo.tilt, locks=[self.acc.lock, ])
         self.default_pos = Position(0, 0)
         self.current_pos = None
-        self.cam = None
+        self.camera = None
         self.streamout = None
-        self.resolution = (640, 480)
+        self.resolution = (800, 600)
         self.avg_wb = 200
         self.avg_ev = 200
         self.histo_ev = []
@@ -122,8 +122,9 @@ class Server(object):
         self.setup_cam()
 
     def __del__(self):
-        self.cam.stop_recording()
-        self.cam = self.streamout = None
+        if self.camera:
+            self.camera.stop_recording()
+        self.camera= self.streamout = None
 
     def quit(self, *arg, **kwarg):
         self.quit_event.set()
@@ -158,8 +159,8 @@ class Server(object):
                    'Pragma': 'no-cache',
                    'Content-Type': 'multipart/x-mixed-replace; boundary=FRAME'
                    }
-        for k, v in headers.items():
-            self.bottle.response.add_header(k, v)
+#        for k, v in headers.items():
+#            self.bottle.response.add_header(k, v)
 
     def server_static(self, filename):
         return bottle.static_file(filename, self.img_dir)
@@ -193,8 +194,8 @@ class Server(object):
         dico["aperture"] = lens.aperture
         dico["tilt"] = new_pos.tilt
         dico["pan"] = new_pos.pan
-        if dico["EV"] != "?":
-            self.histo_ev.append(dico["EV"])
+        if dico["Ev"] != "?":
+            self.histo_ev.append(dico["Ev"])
         if dico["awb_gains"] != [0, 0]:
             red, blue = dico["awb_gains"]
             self.wb_red.append(red)
@@ -279,48 +280,53 @@ class Server(object):
 
     def setup_cam(self):
         self.streamout = StreamingOutput()
-        self.cam = PiCamera(resolution=self.resolution, framerate=30)  # , sensor_mode=3)
-        self.cam.start_recording(self.streamout, format='mjpeg')
-        self.cam.awb_mode = "auto"
-        # self.cam.awb_gains = (1.0, 1.0)
+        self.camera= PiCamera(resolution=self.resolution, framerate=30)  # , sensor_mode=3)
+        self.camera.awb_mode = "auto"
+        self.camera.exposure_mode= "nightpreview"
+        self.camera.start_recording(self.streamout, format='mjpeg')
+
+    def get_metadata(self):
+        metadata = {"iso": float(self.camera.iso),
+                    "analog_gain": float(self.camera.analog_gain),
+                    "awb_gains": [float(i) for i in self.camera.awb_gains],
+                    "digital_gain": float(self.camera.digital_gain),
+                    "exposure_compensation": float(self.camera.exposure_compensation),
+                    "exposure_speed": float(self.camera.exposure_speed),
+                    "speed": 1e6/float(self.camera.exposure_speed),
+                    "exposure_mode": self.camera.exposure_mode,
+                    "framerate": float(self.camera.framerate),
+                    "revision": self.camera.revision,
+                    "shutter_speed": float(self.camera.shutter_speed),
+                    "aperture": lens.aperture,
+                    "focal_length": lens.focal,
+                    "resolution": self.camera.resolution}
+        if metadata['revision'] == "imx219":
+            metadata['iso_calc'] = 54.347826086956516 * metadata["analog_gain"] * metadata["digital_gain"]
+        if metadata['revision'] == "imx477":
+            metadata['iso_calc'] = 40 * metadata["analog_gain"] * metadata["digital_gain"]
+        else:
+            metadata['iso_calc'] = 100.0 * metadata["analog_gain"] * metadata["digital_gain"]
+        try:
+            metadata['Ev'] = lens.calc_EV( 1e6 / metadata["shutter_speed"], metadata["digital_gain"]*metadata["analog_gain"])
+        except:
+            metadata["Ev"] = "?"
+        return metadata
+
 
     def capture(self):
-        now = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%Mm%Ss")
-        dico = {"iso": float(self.cam.iso),
-                "analog_gain": float(self.cam.analog_gain),
-                "awb_gains": [float(i) for i in self.cam.awb_gains],
-                "digital_gain": float(self.cam.digital_gain),
-                "exposure_compensation": float(self.cam.exposure_compensation),
-                "exposure_speed": float(self.cam.exposure_speed),
-                "framerate": float(self.cam.framerate),
-                "revision": self.cam.revision,
-                "shutter_speed": float(self.cam.shutter_speed),
-                "date_time": now,
-                "style": \
-"""{box-sizing: border-box;}
+        dico = self.get_metadata()
+        dico["date_time"] = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%Mm%Ss")
+        dico["style"] = """{box-sizing: border-box;}
 .column {float: left; width: 50%;}
 .row:after { content: ""; display: table; clear: both; }
 }"""
-                }
-        gain = dico["digital_gain"]
-        if gain == 0:
-            gain = 1
-        gain *= dico["analog_gain"]
-        if dico["exposure_speed"] == 0:
-            dico["speed"] = "?"
-        else:
-            dico["speed"] = 1e6 / dico["exposure_speed"]
-        if gain == 0 or dico["exposure_speed"] == 0:
-            dico["EV"] = "?"
-        else:
-            dico["EV"] = lens.calc_EV(dico["speed"], gain=gain)
         return dico
 
     def save(self):
         self.trajectory.append(self.current_pos)
         traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10}
                 for i in self.trajectory]
-        camera = OrderedDict((# ("sensor_mode", 3),
+        camera = OrderedDict((("sensor_mode", 3),
                               ("warmup", 10),
                               ("framerate", 1),
                               ("avg_wb", self.avg_wb),

@@ -293,7 +293,7 @@ class MMA8451:
             precision = LOW_RES_PRECISION
         max_val = 2 ** (precision - 1) - 1
         signed_max = 2 ** precision
-        logger.debug('read bytes for axes %s', str(read_bytes))
+#        logger.debug('read bytes for axes %s', str(read_bytes))
 
         x -= signed_max if x > max_val else 0
         y -= signed_max if y > max_val else 0
