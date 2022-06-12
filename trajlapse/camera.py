@@ -3,10 +3,8 @@ import os
 from collections import namedtuple, OrderedDict
 import time
 import threading
-try:
-    from Queue import Queue
-except ImportError:
-    from queue import Queue
+import io
+from queue import Queue
 import logging
 import numpy
 from picamera import PiCamera
@@ -167,6 +165,7 @@ class CameraSimple(threading.Thread):
 
     def run(self):
         "main thread activity"
+        stream = io.BytesIO()
         self.set_exposure_auto()
         while not self.quit_event.is_set():
             if self.record_event.is_set():
@@ -176,7 +175,7 @@ class CameraSimple(threading.Thread):
                     before = time.time()
                     filename = get_isotime(before) + ".jpg"
                     fullname = os.path.join(self.folder, filename)
-                    self.camera.capture(fullname)
+                    self.camera.capture(fullname, format="jpeg", thumbnail=False)
                     after = time.time()
                 metadata = self.get_metadata()
                 self.set_exposure_auto()
@@ -186,11 +185,17 @@ class CameraSimple(threading.Thread):
                 self.queue.put(metadata)
                 self.record_event.clear()
             else:
-                time.sleep(1.0 / self.camera.framerate)
-            try:
-                self.collect_exposure()
-            except ZeroDivisionError:
-                continue
+                #acquires dummy image
+                self.camera.capture(stream, format="jpeg", thumbnail=False,
+                        burst=True, use_video_port=True)
+                stream.truncate()
+                stream.seek(0)
+
+            #    time.sleep(1.0 / self.camera.framerate)
+            #try:
+            #self.collect_exposure()
+            #except ZeroDivisionError:
+            #    continue
         self.camera.close()
 
     def get_metadata(self):
