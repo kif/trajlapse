@@ -13,14 +13,17 @@ from .exposure import lens
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("camera")
 import signal
-try:
-    import colors as _colors
-except ImportError:
-    logger.warning("Colors module not available, using slow Python implementation")
-    colors = None
-else:
-    colors = _colors.Flatfield("flatfield.txt")
-    sRGB = _colors.SRGB()
+import exiv2
+
+#try:
+#    import colors as _colors
+#except ImportError:
+#    logger.warning("Colors module not available, using slow Python implementation")
+#    colors = None
+#else:
+#    colors = _colors.Flatfield("flatfield.txt")
+#    sRGB = _colors.SRGB()
+
 ExpoRedBlue = namedtuple("ExpoRedBlue", ("ev", "red", "blue"))
 GainRedBlue = namedtuple("GainRedBlue", ("red", "blue"))
 
@@ -165,7 +168,8 @@ class CameraSimple(threading.Thread):
 
     def run(self):
         "main thread activity"
-        stream = io.BytesIO()
+        #stream = io.BytesIO()
+        stream = "/tmp/trajlsapse_last.jpg"
         self.set_exposure_auto()
         while not self.quit_event.is_set():
             if self.record_event.is_set():
@@ -175,7 +179,7 @@ class CameraSimple(threading.Thread):
                     before = time.time()
                     filename = get_isotime(before) + ".jpg"
                     fullname = os.path.join(self.folder, filename)
-                    self.camera.capture(fullname, format="jpeg", thumbnail=False)
+                    self.camera.capture(fullname, format="jpeg", thumbnail=None)
                     after = time.time()
                 metadata = self.get_metadata()
                 self.set_exposure_auto()
@@ -186,16 +190,17 @@ class CameraSimple(threading.Thread):
                 self.record_event.clear()
             else:
                 #acquires dummy image
-                self.camera.capture(stream, format="jpeg", thumbnail=False,
-                        burst=True, use_video_port=True)
-                stream.truncate()
-                stream.seek(0)
+                self.camera.capture(stream, format="jpeg", thumbnail=None,
+                                    #burst=True, 
+                                    use_video_port=False)
+                #stream.truncate()
+                #stream.seek(0)
 
             #    time.sleep(1.0 / self.camera.framerate)
             #try:
-            #self.collect_exposure()
+                self.collect_exposure(stream)
             #except ZeroDivisionError:
-            #    continue
+                #continue
         self.camera.close()
 
     def get_metadata(self):
@@ -266,8 +271,11 @@ class CameraSimple(threading.Thread):
         self.camera.awb_mode = "off"
         self.camera.exposure_mode = "off"
 
-    def collect_exposure(self):
-        ev = self.get_exposure()
+    def collect_exposure(self, filename=None):
+        if filename:
+            ev = self.get_exposure_fn(filename)
+        else:
+            ev = self.get_exposure()
         self.histo_ev.append(ev)
         rg, bg = self.camera.awb_gains
         self.wb_red.append(1.0 if rg == 0 else float(rg))
@@ -282,4 +290,17 @@ class CameraSimple(threading.Thread):
         speed = 1e6 / es
         ev = lens.calc_EV(speed, gain)
         logger.debug(f"ag: {ag} dg: {dg} es: {es} speed {speed} ev: {ev}")
+        return ev
+
+    def get_exposure_fn(self, filename):
+        image = exiv2.ImageFactory.open(filename)
+        image.readMetadata()
+        exif = image.exifData()
+        iso = exif["Exif.Image.ISOSpeedRatings"].toFloat()
+        time = exif["Exif.Image.ExposureTime"].toFloat()
+        speed = exif["Exif.Image.ShutterSpeedValue"].toFloat()
+        Ev =  exif["Exif.Image.BrightnessValue"].toFloat()
+        ev = lens.calc_EV(speed, iso=iso)
+
+        logger.debug(f"filename {filename} Ev: {Ev} {ev}, ISO: {iso}")
         return ev
