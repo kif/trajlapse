@@ -283,7 +283,9 @@ class Server(object):
         self.camera= PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
         self.camera.awb_mode = "auto"
         self.camera.exposure_mode= "nightpreview"
-        self.camera.start_recording(self.streamout, format='mjpeg')
+        self.camera.start_recording(self.streamout, 
+                                    format='mjpeg',
+                                    )
 
     def get_metadata(self):
         ces = float(self.camera.exposure_speed)
