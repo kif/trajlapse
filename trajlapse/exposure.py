@@ -17,7 +17,7 @@ class Exposure:
     """Class for calculating absolute Exposure Value
     from speed & gain et vice-versa"""
 
-    def __init__(self, focal=4.0, aperture=1.4, gain4iso100=1.0):
+    def __init__(self, focal=4.0, aperture=4, gain4iso100=1.0):
         """
         :param focal: Focal length in mm
         :param aperture: 1/f apeture of the lens
@@ -47,7 +47,7 @@ class Exposure:
         return pow(2.0, ev) / (self.aperture ** 2)
 
 
-lens = Exposure(focal=4.0, aperture=1.4, gain4iso100=2.317)
+lens = Exposure(focal=4.0, aperture=4, gain4iso100=2.317)
 
 if __name__ == "__main__":
 
