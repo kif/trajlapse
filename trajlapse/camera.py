@@ -249,12 +249,14 @@ class CameraSimple(threading.Thread):
 
     def set_exposure_auto(self):
         self.camera.shutter_speed = 0
-#        self.camera.iso = 0
+        self.camera.iso = 0
         self.camera.awb_mode = "auto"  # alternative: off
         self.camera.meter_mode = 'average'  # 'backlit' #"average" ?
-        self.camera.exposure_mode = "nightpreview"  # auto"
+        self.camera.exposure_mode = "auto" #"nightpreview"  # auto"
+        self.camera.start_preview()
 
     def set_exposure_fixed(self):
+        self.camera.stop_preview()
         self.update_expo()
         self.camera.awb_mode = "off"
         self.camera.exposure_mode = "off"
