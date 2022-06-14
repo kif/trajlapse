@@ -90,7 +90,7 @@ class CameraSimple(threading.Thread):
         self.histo_ev = histo_ev or []
         self.wb_red = wb_red or []
         self.wb_blue = wb_blue or []
-
+        self.exposure_mode = "auto" # can be night-preview
         threading.Thread.__init__(self, name="Camera")
         signal.signal(signal.SIGINT, self.quit)
         self.quit_event = quit_event or threading.Event()
@@ -273,8 +273,8 @@ class CameraSimple(threading.Thread):
         self.camera.shutter_speed = 0
         self.camera.iso = 0
         self.camera.awb_mode = "auto"  # alternative: off
-        self.camera.meter_mode = 'backlit' #"average" ?
-        self.camera.exposure_mode = "auto" #"nightpreview"  # auto"
+        self.camera.meter_mode = "average"
+        self.camera.exposure_mode = self.exposure_mode
         self.still_stats = True
         #self.camera.start_preview()
 
@@ -315,6 +315,10 @@ class CameraSimple(threading.Thread):
         if isinstance(filename, bytes):
             filename="bytes"
         logger.debug(f"filename {filename} Ev: {Ev} {ev}, ISO: {iso}, speed: {speed}")
-        if speed < 4*self.camera.framerate and self.camera.exposure_mode == "auto":
-            self.camera.exposure_mode = "nightpreview"  # auto"
+        if speed < 4*self.camera.framerate and self.exposure_mode == "auto":
+            self.camera.exposure_mode = self.exposure_mode = "nightpreview"  # auto"
+            logger.info(f"set exposure to {self.exposure_mode}")
+        elif speed > 2*self.camera.framerate and self.exposure_mode == "nightpreview":
+            self.camera.exposure_mode = self.exposure_mode = "auto"  # auto"
+            logger.info(f"set exposure to {self.exposure_mode}")
         return ev
