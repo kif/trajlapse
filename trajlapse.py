@@ -214,11 +214,13 @@ class TimeLapse(threading.Thread):
                                    encode=json.dumps, decode=json.loads)
 
     def __del__(self):
-        if self.quit_event and callable(self.quit_event.set):
-            self.quit_event.set()
-        self.camera = None
-        self.trajectory = None
-        self.accelero = None
+        try:
+            if self.quit_event and callable(self.quit_event.set):
+                self.quit_event.set()
+        finally:
+            self.camera = None
+            self.trajectory = None
+            self.accelero = None
 
     def quit(self, *arg, **kwarg):
         """called with SIGINT: clean up and quit gracefully"""

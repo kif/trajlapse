@@ -44,7 +44,7 @@ class Exposure:
 
     def calc_speed(self, ev):
         """Calculate the speed needed at given exposure value, in 1/s, for iso100"""
-        return pow(2.0, ev) / (self.aperture ** 2)
+        return pow(2.0, ev) * self.gain4iso100 / (self.aperture ** 2)
 
 
 lens = Exposure(focal=4.0, aperture=4, gain4iso100=2.317)

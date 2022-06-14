@@ -118,9 +118,12 @@ class MMA8451:
 
     def __del__(self):
         """ destructor for smbus open file """
-        logger.debug('closing smbus file descriptor.')
-        self._smbus.close()
-
+        if logger:
+            logger.debug('closing smbus file descriptor.')
+        try:
+            self._smbus.close()
+        finally:
+            self._smbus=None
     def set_high_res_mode(self, mode=OVERSAMPLING_MODE):
         """ set the type of high res mode."""
         self.high_res_mode = mode

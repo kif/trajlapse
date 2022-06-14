@@ -154,6 +154,7 @@ class CameraSimple(threading.Thread):
         wb_red = self.wb_red[:]
         wb_blue = self.wb_blue[:]
         histo_ev = self.histo_ev[:]
+        #stream = io
         while time.time() < end:
             try:
                 self.collect_exposure()
@@ -168,8 +169,8 @@ class CameraSimple(threading.Thread):
 
     def run(self):
         "main thread activity"
-        #stream = io.BytesIO()
-        stream = "/tmp/trajlsapse_last.jpg"
+        stream = io.BytesIO()
+        #stream = "/tmp/trajlsapse_last.jpg"
         self.set_exposure_auto()
         while not self.quit_event.is_set():
             if self.record_event.is_set():
@@ -188,17 +189,26 @@ class CameraSimple(threading.Thread):
                 metadata["camera_stop"] = after
                 self.queue.put(metadata)
                 self.record_event.clear()
-            else:
-                #acquires dummy image
-                self.camera.capture(stream, format="jpeg", thumbnail=None,
-                                    #burst=True, 
-                                    use_video_port=False)
-                #stream.truncate()
-                #stream.seek(0)
 
+                self.camera.capture(stream, format="jpeg", 
+                                    thumbnail=None,
+                                    use_video_port=True 
+                                    )
+                stream.truncate()
+                stream.seek(0)
+            else:
+                #acquires dummy image for exposure calibration
+                self.camera.capture(stream, format="jpeg", 
+                                    thumbnail=None,
+                                    #use_video_port=False
+                                    )
+                stream.truncate()
+                stream.seek(0)
             #    time.sleep(1.0 / self.camera.framerate)
             #try:
-                self.collect_exposure(stream)
+                self.collect_exposure(stream.read())
+                stream.seek(0)
+                stream.truncate()
             #except ZeroDivisionError:
                 #continue
         self.camera.close()
@@ -242,7 +252,7 @@ class CameraSimple(threading.Thread):
         ev = savgol1(self.histo_ev)
         speed = lens.calc_speed(ev)
         framerate = float(self.camera.framerate)
-        logger.info("Update speed: %s %s", speed, framerate)
+        #logger.info("Update speed: %s %s", speed, framerate)
 
         if speed > framerate:
             self.camera.shutter_speed = int(1e6 / framerate / speed)
@@ -296,11 +306,12 @@ class CameraSimple(threading.Thread):
         image = exiv2.ImageFactory.open(filename)
         image.readMetadata()
         exif = image.exifData()
-        iso = exif["Exif.Image.ISOSpeedRatings"].toFloat()
-        time = exif["Exif.Image.ExposureTime"].toFloat()
-        speed = exif["Exif.Image.ShutterSpeedValue"].toFloat()
-        Ev =  exif["Exif.Image.BrightnessValue"].toFloat()
+        iso = exif["Exif.Photo.ISOSpeedRatings"].toLong()
+        time = exif["Exif.Photo.ExposureTime"].toFloat()
+        speed = exif["Exif.Photo.ShutterSpeedValue"].toFloat()
+        Ev =  exif["Exif.Photo.BrightnessValue"].toFloat()
         ev = lens.calc_EV(speed, iso=iso)
-
-        logger.debug(f"filename {filename} Ev: {Ev} {ev}, ISO: {iso}")
+        if isinstance(filename, bytes):
+            filename="bytes"
+        logger.debug(f"filename {filename} Ev: {Ev} {ev}, ISO: {iso}, speed: {speed}, time: {time}")
         return ev
