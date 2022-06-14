@@ -113,8 +113,8 @@ class Server(object):
         self.camera = None
         self.streamout = None
         self.resolution = (1920, 1080)# (640,480)#(800, 600)
-        self.avg_wb = 200
-        self.avg_ev = 200
+        self.avg_wb = 51 
+        self.avg_ev = 51 
         self.histo_ev = []
         self.wb_red = []
         self.wb_blue = []
@@ -339,7 +339,7 @@ class Server(object):
                               ("wb_blue", self.wb_blue),))
         dico = OrderedDict((("trajectory", traj),
                             ("delay", 10),
-                            ("folder", "."),
+                            ("folder", "/tmp"),
                             ("camera", camera),
                             ))
 
