@@ -300,6 +300,7 @@ class TimeLapse(threading.Thread):
                     self.save_config(self.frame_idx)
             else:
                 time.sleep(0.1)
+        self.save_config(self.frame_idx)
 
 
 if __name__ == "__main__":

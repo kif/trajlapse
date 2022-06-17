@@ -318,7 +318,7 @@ class CameraSimple(threading.Thread):
         if speed < 4*self.camera.framerate and self.exposure_mode == "auto":
             self.camera.exposure_mode = self.exposure_mode = "nightpreview"  # auto"
             logger.info(f"set exposure to {self.exposure_mode}")
-        elif speed > 2*self.camera.framerate and self.exposure_mode == "nightpreview":
+        elif speed > 20*self.camera.framerate and self.exposure_mode == "nightpreview":
             self.camera.exposure_mode = self.exposure_mode = "auto"  # auto"
             logger.info(f"set exposure to {self.exposure_mode}")
         return ev
