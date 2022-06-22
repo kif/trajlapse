@@ -4,6 +4,12 @@ from math import log2
 import numpy
 from PIL import Image
 import numexpr
+import exiv2
+import logging
+logger = logging.getLogger(__name__)
+
+from .exposure import lens
+numexpr.set_num_threads(2)
 
 
 class Analyzer:
@@ -24,11 +30,17 @@ class Analyzer:
         self.mask = numpy.where(r2 <= min(c * c))
 
     def process(self, filename):
+        try:
+            results = self.read_exif(filename)
+        except Exception:
+            results = {"exif": "corrupted"}
         ary = numpy.asarray(Image.open(filename))
-        return {"filename": filename,
-                "dEv": self.calc_expo(ary),
-                "gain_rb": self.calc_awb(ary)}
+        results["filename"] = filename
+        results["delta_Ev"] = self.calc_expo(ary)
+        results["gain_rb"] = self.calc_awb(ary)
+        return results
 
+    __call__ = process
     def calc_expo(self, ary):
         """
         :param ary: input array (h,w,3)
@@ -38,7 +50,8 @@ class Analyzer:
         numpy.dot(lrgb.astype(numpy.float32), self.Lmat, out=self.Lary)
         self.Lary += 0.5
         hist = numpy.bincount(self.Lary.astype(numpy.int8))
-        return -log2(numpy.argmax(hist) / 18)  # 18% for a perfect exposition
+        maxi = max(1, numpy.argmax(hist))
+        return -log2(maxi / 18)  # 18% for a perfect exposition
 
     def calc_awb(self, ary):
         """Calculate the red and blue gain correction for auto-white balance"""
@@ -50,3 +63,16 @@ class Analyzer:
         gg = numpy.argmin(abs(g - 0.995 * g[-1])) + 1
         bg = numpy.argmin(abs(b - 0.995 * b[-1])) + 1
         return rg / gg, bg / gg
+
+    def read_exif(self, filename):
+        """Parse EXIF metadata to calculate exposure"""
+        image = exiv2.ImageFactory.open(filename)
+        image.readMetadata()
+        exif = image.exifData()
+        results = {
+        "iso": exif["Exif.Photo.ISOSpeedRatings"].toLong(),
+        "speed": exif["Exif.Photo.ShutterSpeedValue"].toFloat(),
+        "Ev_exif": exif["Exif.Photo.BrightnessValue"].toFloat()
+        }
+        results["Ev_calc"] = lens.calc_EV(results["speed"], iso=results["iso"])
+        return results
