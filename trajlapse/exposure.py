@@ -28,7 +28,7 @@ class Exposure:
         self.gain4iso100 = gain4iso100
 
     def __repr__(self):
-        return "Exposure calculation for lens with f'=%smm and aperture F/%s" % (self.focal, self.aperture)
+        return f"Exposure calculation for lens with f'={self.focal}mm and aperture F/{self.aperture}" 
 
     def calc_EV(self, speed, gain=None, iso=100):
         """absolute exposure calculator
@@ -46,8 +46,8 @@ class Exposure:
         """Calculate the speed needed at given exposure value, in 1/s, for iso100"""
         return pow(2.0, ev) * self.gain4iso100 / (self.aperture ** 2)
 
-
-lens = Exposure(focal=6.0, aperture=2.4, gain4iso100=2.317)
+# Aperture is between 2.0 and 2.4
+lens = Exposure(focal=6.0, aperture=2.0, gain4iso100=2.317)
 
 if __name__ == "__main__":
 

@@ -3,6 +3,7 @@ import os
 from collections import namedtuple, OrderedDict
 import time
 import threading
+from multiprocessing import Process, Queue as MpQueue
 import io
 from queue import Queue
 import logging
@@ -15,14 +16,21 @@ logger = logging.getLogger("camera")
 import signal
 import exiv2
 
-#try:
-#    import colors as _colors
-#except ImportError:
-#    logger.warning("Colors module not available, using slow Python implementation")
-#    colors = None
-#else:
-#    colors = _colors.Flatfield("flatfield.txt")
-#    sRGB = _colors.SRGB()
+
+def analyzer(shape, qin, qout):
+    "Simple analyzer process"
+    from trajlapse.analysis  import Analyzer
+    a = Analyzer(shape)
+    metadata = qin.get()
+    while metadata is not None:
+        fname = metadata.get("filename")
+        if fname and os.path.exists(fname):
+            res = a.process(fname)
+            metadata.update(res)
+            qout.put(metadata)
+            os.unlink(fname)
+        metadata = qin.get()
+
 
 ExpoRedBlue = namedtuple("ExpoRedBlue", ("ev", "red", "blue"))
 GainRedBlue = namedtuple("GainRedBlue", ("red", "blue"))
@@ -72,8 +80,8 @@ savgol0 = SavGol(0)
 savgol1 = SavGol(1)
 
 
-class CameraSimple(threading.Thread):
-    "A simple camera class which continuously saves images"
+class Camera(threading.Thread):
+    "A camera class which continuously saves images, analysis performed in separate process"
 
     def __init__(self, resolution=(4056, 3040), framerate=1, sensor_mode=3,
                  avg_ev=21, avg_wb=31, histo_ev=None,
@@ -81,12 +89,12 @@ class CameraSimple(threading.Thread):
                  quit_event=None, queue=None,
                  folder="/tmp",
                  ):
-        """This thread handles the camera: simple camera saving data to 
+        """This thread handles the camera: simple camera saving data to a file
         
         """
+        self.analysis_folder = None
         self.avg_ev = avg_ev
         self.avg_wb = avg_wb
-
         self.histo_ev = histo_ev or []
         self.wb_red = wb_red or []
         self.wb_blue = wb_blue or []
@@ -101,13 +109,25 @@ class CameraSimple(threading.Thread):
         self.last_subindex = -1
         self.lock = threading.Semaphore()
         self.camera = PiCamera(resolution=resolution, framerate=framerate, sensor_mode=sensor_mode)
+        self.nproc = 2
+        self.max_analysis = 10
+        self.analysis_queue_in = self.analysis_queue_out = self.analyser_pool = None
+        self.setup_analyzer_pool()
 
     def __del__(self):
         self.camera = self.stream = None
+        self.analysis_queue_in = self.analysis_queue_out = self.analyser_pool = None
 
     def quit(self, *arg, **kwarg):
         "quit the main loop and end the thread"
         self.quit_event.set()
+        self.camera.close()
+        if self.analyser_pool:
+            for p in self.analyser_pool:
+                self.analysis_queue_in.put(None)
+            for p in self.analyser_pool:
+                p.join()
+        self.analyser_pool = []
 
     def pause(self, wait=True):
         "pause the recording, wait for the current value to be acquired"
@@ -119,6 +139,22 @@ class CameraSimple(threading.Thread):
 
     def shoot(self):
         self.record_event.set()
+
+    def setup_analyzer_pool(self):
+        self.analysis_folder = "/tmp/trajlapse"
+        if not os.path.isdir(self.analysis_folder):
+            os.makedirs(self.analysis_folder)
+        for f in os.listdir(self.analysis_folder):
+            os.unlink(os.path.join(self.analysis_folder, f))
+
+        self.analysis_queue_in = MpQueue()
+        self.analysis_queue_out = MpQueue()
+        self.analyser_pool = [Process(target=analyzer, args=(self.camera.resolution,
+                                                             self.analysis_queue_in,
+                                                             self.analysis_queue_out))
+                                for i in range(self.nproc)]
+        for p in self.analyser_pool:
+            p.start()
 
     def get_config(self):
         config = OrderedDict([("resolution", tuple(self.camera.resolution)),
@@ -154,6 +190,9 @@ class CameraSimple(threading.Thread):
         wb_red = self.wb_red[:]
         wb_blue = self.wb_blue[:]
         histo_ev = self.histo_ev[:]
+        self.wb_red = []
+        self.wb_blue = []
+        self.histo_ev = []
         stream = io.BytesIO()
         while time.time() < end:
             self.camera.capture(stream, format="jpeg", 
@@ -168,26 +207,19 @@ class CameraSimple(threading.Thread):
             stream.seek(0)
             stream.truncate()
 
-            #try:
-            #    self.collect_exposure()
-            #except ZeroDivisionError:
-            #    end = time.time() + delay
-            #    continue
-            #time.sleep(1.0 / self.camera.framerate)
-        # keep only last value
-        self.wb_red = wb_red + self.wb_red#[-1:]
-        self.wb_blue = wb_blue + self.wb_blue#[-1:]
-        self.histo_ev = histo_ev + self.histo_ev#[-1:]
+        self.wb_red = wb_red + self.wb_red
+        self.wb_blue = wb_blue + self.wb_blue
+        self.histo_ev = histo_ev + self.histo_ev
 
     def run(self):
         "main thread activity"
-        stream = io.BytesIO()
-        #stream = "/tmp/trajlsapse_last.jpg"
-        self.set_exposure_auto()
+        idx = 0
+        self.set_exposure_fixed()
         while not self.quit_event.is_set():
+            self.set_exposure()
             if self.record_event.is_set():
                 # record !
-                self.set_exposure_fixed()
+                # self.set_exposure_fixed()
                 with self.lock:
                     before = time.time()
                     filename = get_isotime(before) + ".jpg"
@@ -195,7 +227,7 @@ class CameraSimple(threading.Thread):
                     self.camera.capture(fullname, format="jpeg", thumbnail=None)
                     after = time.time()
                 metadata = self.get_metadata()
-                self.set_exposure_auto()
+                # self.set_exposure_auto()
                 metadata["filename"] = filename
                 metadata["camera_start"] = before
                 metadata["camera_stop"] = after
@@ -203,17 +235,18 @@ class CameraSimple(threading.Thread):
                 self.record_event.clear()
             else:
                 #acquires dummy image for exposure calibration
-                self.camera.capture(stream, format="jpeg", 
-                                    thumbnail=None,
-                                    #use_video_port=False
-                                    )
-                stream.truncate()
-                stream.seek(0)
-                self.collect_exposure(stream.read())
-                stream.seek(0)
-                stream.truncate()
+                if len(os.listdir(self.analysis_folder)) < self.max_analysis:
+                    idx += 1
+                    filename = os.path.join(self.analysis_folder, f"temp_{idx:04d}.jpg")
+                    self.camera.capture(filename, format="jpeg",
+                                        thumbnail=None)
+                    metadata = self.get_metadata()
+                    metadata["filename"] = filename
+                    self.analysis_queue_in.put(metadata)
+                else:
+                    logger.warning("Too many file awaiting for processing")
             time.sleep(0.1 / self.camera.framerate)
-        self.camera.close()
+        self.quit()
 
     def get_metadata(self):
         metadata = {"iso": float(self.camera.iso),
@@ -251,7 +284,7 @@ class CameraSimple(threading.Thread):
             self.histo_ev = self.histo_ev[-self.avg_ev:]
         self.camera.awb_gains = (savgol0(self.wb_red),
                                  savgol0(self.wb_blue))
-        ev = savgol0(self.histo_ev)
+        ev = savgol1(self.histo_ev)
         speed = lens.calc_speed(ev)
         framerate = float(self.camera.framerate)
         logger.debug(f"Set Exposure to {ev:.3f}  speed: {speed:.3f} {framerate:.3f}")
@@ -292,6 +325,12 @@ class CameraSimple(threading.Thread):
         self.wb_red.append(1.0 if rg == 0 else float(rg))
         self.wb_blue.append(1.0 if bg == 0 else float(bg))
         #return ev,rg,bg
+
+    def set_exposure(self):
+        "Empty queue with processed info and update history. finally set iso and wb"
+        while not self.analysis_queue_out.empty():
+            result = self.analysis_queue_out.get()
+            print(result)
 
     def get_exposure(self):
         ag = float(self.camera.analog_gain)
