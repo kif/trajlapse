@@ -23,7 +23,7 @@ from sqlitedict import SqliteDict
 from trajlapse import servo
 from trajlapse.positioner import Position, Positioner
 from trajlapse.accelero import Accelerometer
-from trajlapse.camera import CameraSimple
+from trajlapse.camera import Camera
 
 trajectory = {
 "delay": 20,
@@ -186,7 +186,7 @@ class TimeLapse(threading.Thread):
         self.accelero.start()
         self.database = {}  # created at init
         # self.servo_status = None
-        self.camera = CameraSimple(resolution=resolution,
+        self.camera = Camera(resolution=resolution,
                                    framerate=framerate,
                                    avg_ev=avg_ev,
                                    avg_wb=avg_awb,
