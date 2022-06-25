@@ -273,9 +273,9 @@ class Camera(threading.Thread):
                     "focal_length": lens.focal,
                     "resolution": self.camera.resolution}
         if metadata['revision'] == "imx219":
-            metadata['iso_calc'] = 54.347826086956516 * metadata["analog_gain"] * metadata["digital_gain"]
+            metadata['iso_calc'] = 54.35 * metadata["analog_gain"] * metadata["digital_gain"]
         if metadata['revision'] == "imx477":
-            metadata['iso_calc'] = 40 * metadata["analog_gain"] * metadata["digital_gain"]
+            metadata['iso_calc'] = 43.16 * metadata["analog_gain"] * metadata["digital_gain"]
         else:
             metadata['iso_calc'] = 100.0 * metadata["analog_gain"] * metadata["digital_gain"]
         return metadata
@@ -340,7 +340,15 @@ class Camera(threading.Thread):
         "Empty queue with processed info and update history. finally set iso and wb"
         while not self.analysis_queue_out.empty():
             result = self.analysis_queue_out.get()
-            print(result)
+            speed = 1e6 / result["exposure_speed"]
+            ev = lens.calc_EV(speed, iso=result["iso_calc"]) + result['delta_Ev']
+            self.histo_ev.append(ev)
+            rg, bg = result['awb_gains']
+            rm, bm = result['delta_rb']
+            self.wb_red.append(rg * rm)
+            self.wb_blue.append(bg * bm)
+            logger.info(f"{result['filename']} Ev: {ev:.3f} Rg: {rg*rm} Bg: {bg*bm}")
+        self.update_expo()
 
     def get_exposure(self):
         ag = float(self.camera.analog_gain)
