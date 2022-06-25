@@ -254,7 +254,7 @@ class CameraSimple(threading.Thread):
         ev = savgol0(self.histo_ev)
         speed = lens.calc_speed(ev)
         framerate = float(self.camera.framerate)
-        logger.debug(f"Set Exposure to {ev}  speed: {speed} {framerate}")
+        logger.debug(f"Set Exposure to {ev:.3f}  speed: {speed:.3f} {framerate:.f3}")
 
         if speed > framerate:
             self.camera.iso = 100
@@ -314,7 +314,7 @@ class CameraSimple(threading.Thread):
         ev = lens.calc_EV(speed, iso=iso)
         if isinstance(filename, bytes):
             filename="bytes"
-        logger.debug(f"filename {filename} Ev: {Ev} {ev}, ISO: {iso}, speed: {speed}")
+        logger.debug(f"filename {filename} Ev: {Ev:.3f} {ev:.3f}, ISO: {iso}, speed: {speed:.3f}")
         if speed < 4*self.camera.framerate and self.exposure_mode == "auto":
             self.camera.exposure_mode = self.exposure_mode = "nightpreview"  # auto"
             logger.info(f"set exposure to {self.exposure_mode}")
