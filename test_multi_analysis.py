@@ -24,7 +24,7 @@ def analyzer(shape, qin, qout):
 def process_many(filenames, nproc=4):
     qin = Queue()
     qout = Queue()
-    pool = [Process(target=analyzer, args=((3040, 4056), qin, qout))
+    pool = [Process(target=analyzer, args=((1520, 2018), qin, qout))
             for i in range(nproc)]
     for p in pool:
         p.start()
@@ -40,8 +40,8 @@ def process_many(filenames, nproc=4):
 
 
 if __name__ == "__main__":
-    nproc = 2
-    files = glob.glob("/home/kieffer/Pictures/2022-06-14/*.jpg")
+    nproc = 4
+    files = glob.glob("data/2022-06-25/*.jpg")
     print(len(files))
     t0 = time.perf_counter()
     results = process_many(files, nproc)

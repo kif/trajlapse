@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .exposure import lens
-numexpr.set_num_threads(2)
+numexpr.set_num_threads(1)
 
 
 class Analyzer:
