@@ -147,9 +147,16 @@ class Camera(threading.Thread):
             os.makedirs(self.analysis_folder)
         for f in os.listdir(self.analysis_folder):
             os.unlink(os.path.join(self.analysis_folder, f))
+        if self.analysis_queue_in is None:
+            self.analysis_queue_in = MpQueue()
+        if self.analysis_queue_out is None:
+            self.analysis_queue_out = MpQueue()
+        if self.analyser_pool:
+            for p in self.analyser_pool:
+                self.analysis_queue_in.put(None)
+            for p in self.analyser_pool:
+                p.join()
 
-        self.analysis_queue_in = MpQueue()
-        self.analysis_queue_out = MpQueue()
         self.analyser_pool = [Process(target=analyzer, args=(self.camera.resolution[-1::-1],
                                                              self.analysis_queue_in,
                                                              self.analysis_queue_out))
@@ -181,6 +188,7 @@ class Camera(threading.Thread):
         self.avg_ev = dico.get("avg_ev", self.avg_ev)
         self.avg_wb = dico.get("avg_wb", self.avg_wb)
         self.folder = dico.get("folder", self.folder)
+        self.setup_analyzer_pool()
 
     def warm_up(self, delay=10):
         "warm up the camera"
@@ -246,6 +254,7 @@ class Camera(threading.Thread):
                     self.analysis_queue_in.put(metadata)
                 else:
                     logger.warning("Too many file awaiting for processing")
+                    time.sleep(1.0 / self.camera.framerate)
             time.sleep(0.1 / self.camera.framerate)
         self.quit()
 
