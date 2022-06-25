@@ -254,7 +254,7 @@ class CameraSimple(threading.Thread):
         ev = savgol0(self.histo_ev)
         speed = lens.calc_speed(ev)
         framerate = float(self.camera.framerate)
-        logger.debug(f"Set Exposure to {ev:.3f}  speed: {speed:.3f} {framerate:.f3}")
+        logger.debug(f"Set Exposure to {ev:.3f}  speed: {speed:.3f} {framerate:.3f}")
 
         if speed > framerate:
             self.camera.iso = 100
