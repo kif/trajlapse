@@ -332,6 +332,7 @@ class Server(object):
         camera = OrderedDict((("sensor_mode", 3),
                               ("warmup", 10),
                               ("framerate", 1),
+                              ("resolution", [4058, 3040]),
                               ("avg_wb", self.avg_wb),
                               ("avg_ev", self.avg_ev),
                               ("histo_ev", self.histo_ev),
