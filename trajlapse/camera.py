@@ -20,6 +20,7 @@ import exiv2
 def analyzer(shape, qin, qout):
     "Simple analyzer process"
     from trajlapse.analysis  import Analyzer
+    logger.info(f"Start analyzer with shape {shape}")
     a = Analyzer(shape)
     metadata = qin.get()
     while metadata is not None:

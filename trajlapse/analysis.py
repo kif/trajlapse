@@ -4,7 +4,7 @@ from math import log2
 import numpy
 from PIL import Image
 import numexpr
-import exiv2
+# import exiv2
 import logging
 logger = logging.getLogger(__name__)
 
