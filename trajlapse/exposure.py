@@ -47,7 +47,7 @@ class Exposure:
         return pow(2.0, ev) * self.gain4iso100 / (self.aperture ** 2)
 
 
-lens = Exposure(focal=6.0, aperture=2.0, gain4iso100=2.317)
+lens = Exposure(focal=6.0, aperture=2.4, gain4iso100=2.317)
 
 if __name__ == "__main__":
 
