@@ -149,7 +149,7 @@ class Camera(threading.Thread):
 
         self.analysis_queue_in = MpQueue()
         self.analysis_queue_out = MpQueue()
-        self.analyser_pool = [Process(target=analyzer, args=(self.camera.resolution,
+        self.analyser_pool = [Process(target=analyzer, args=(self.camera.resolution[-1::-1],
                                                              self.analysis_queue_in,
                                                              self.analysis_queue_out))
                                 for i in range(self.nproc)]

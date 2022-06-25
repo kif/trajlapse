@@ -24,20 +24,23 @@ class Analyzer:
         self.Lary = numpy.empty(self.mask[0].size, dtype=numpy.float32)
 
     def init_mask(self):
-        c = (numpy.array(self.shape) / 2)
-        y, x = numpy.ogrid[-c[0]:self.shape[0] - c[0], -c[1]:self.shape[1] - c[1]]
-        r2 = x * x + y * y
-        self.mask = numpy.where(r2 <= min(c * c))
+#        c = (numpy.array(self.shape) / 2)
+#        y, x = numpy.ogrid[-c[0]:self.shape[0] - c[0], -c[1]:self.shape[1] - c[1]]
+#        r2 = x * x + y * y
+        p = (numpy.arange(numpy.prod(self.shape)) % 29 == 0).reshape(self.shape)
+        p[self.shape[0] // 3:2 * self.shape[0] // 3, self.shape[1] // 3:2 * self.shape[1] // 3] = 1
+        self.mask = numpy.where(p)
 
     def process(self, filename):
-        try:
-            results = self.read_exif(filename)
-        except Exception:
-            results = {"exif": "corrupted"}
+        # try:
+        #     results = self.read_exif(filename)
+        # except Exception:
+        #     results = {"exif": "corrupted"}
+        results = {}
         ary = numpy.asarray(Image.open(filename))
         results["filename"] = filename
         results["delta_Ev"] = self.calc_expo(ary)
-        results["gain_rb"] = self.calc_awb(ary)
+        results["delta_rb"] = self.calc_awb(ary)
         return results
 
     __call__ = process
@@ -46,7 +49,7 @@ class Analyzer:
         :param ary: input array (h,w,3)
         :return: exposure correction in + or - Ev
         """
-        lrgb = self.linearize(ary)[self.mask]
+        lrgb = self.linearize(ary[self.mask])
         numpy.dot(lrgb.astype(numpy.float32), self.Lmat, out=self.Lary)
         self.Lary += 0.5
         hist = numpy.bincount(self.Lary.astype(numpy.int8))
