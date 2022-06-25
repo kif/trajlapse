@@ -3,6 +3,7 @@ from collections import namedtuple, OrderedDict
 from threading import Semaphore
 
 Position = namedtuple("Position", ("pan", "tilt"))
+Position.__repr__ = lambda self: f"Position(pan: {self.pan:.3f}°, tilt: {self.tilt:.3f}°)"
 
 
 class Positioner:
