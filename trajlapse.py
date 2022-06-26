@@ -290,7 +290,7 @@ class TimeLapse(threading.Thread):
                 next_img = self.next_img + self.delay
                 self.next_img = now + self.delay if now>next_img else next_img
                 next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
-                logger.debug(f"move to next_pos {next_pos}")
+                logger.info(f"Move to next_pos {next_pos}")
                 self.frame_idx += 1
                 if next_pos != self.position:
                     self.servo_config = self.trajectory.goto_pos(next_pos)

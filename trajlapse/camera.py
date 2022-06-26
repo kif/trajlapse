@@ -324,6 +324,7 @@ class Camera(threading.Thread):
         else:
             self.camera.iso = 800
             self.camera.shutter_speed = min(int(1.25e5 / speed), int(1e6 / framerate))
+        self.camera.exposure_mode = "off"
 
     def set_exposure_auto(self):
         self.camera.shutter_speed = 0
@@ -354,13 +355,14 @@ class Camera(threading.Thread):
         while not self.analysis_queue_out.empty():
             result = self.analysis_queue_out.get()
             speed = 1e6 / result["exposure_speed"]
-            ev = lens.calc_EV(speed, iso=result["iso_calc"]) + result['delta_Ev']
+            ev0 = lens.calc_EV(speed, iso=result["iso_calc"])
+            ev = ev0 + result['delta_Ev']
             self.histo_ev.append(ev)
             rg, bg = result['awb_gains']
             rm, bm = result['delta_rb']
             self.wb_red.append(rg * rm)
             self.wb_blue.append(bg * bm)
-            logger.info(f"{result['filename']} Ev: {ev:.3f} Rg: {rg*rm} Bg: {bg*bm}")
+            logger.info(f"{result['filename']} Ev: {ev:.3f}={ev0:.3f}+{result['delta_Ev']:.3f} Rg: {rg*rm:.3f}={rg:.3f}*{rm:.3f} Bg: {bg*bm:.3f}={bg:.3f}*{bm:.3f}")
         self.update_expo()
 
     def get_exposure(self):
