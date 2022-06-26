@@ -2,6 +2,7 @@
 import os
 from collections import namedtuple, OrderedDict
 import time
+import json
 import threading
 from multiprocessing import Process, Queue as MpQueue
 import io
@@ -18,6 +19,17 @@ import exiv2
 
 
 def analyzer(shape, qin, qout):
+    def save(fname, results):
+        dst = "/tmp/analysis"
+        if not os.path.isdir(dst):
+            try:
+                os.makedirs(dst)
+            except:
+                pass
+        jf = os.path.join(dst, os.path.splitext(os.path.basename(fname)[0] + ".json"))
+
+        with open(jf, "w") as f:
+            json.dump(results, f, indent=4)
     "Simple analyzer process"
     from trajlapse.analysis  import Analyzer
     logger.info(f"Start analyzer with shape {shape}")
@@ -30,6 +42,7 @@ def analyzer(shape, qin, qout):
             metadata.update(res)
             qout.put(metadata)
             os.unlink(fname)
+            save(fname, metadata)
         metadata = qin.get()
 
 

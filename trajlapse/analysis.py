@@ -4,7 +4,7 @@ from math import log2
 import numpy
 from PIL import Image
 import numexpr
-# import exiv2
+import exiv2
 import logging
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class Analyzer:
         self.Lary += 0.5
         hist = numpy.bincount(self.Lary.astype(numpy.int8))
         maxi = max(1, numpy.argmax(hist))  # median, mean or mod ?
-        return -log2(maxi / 18)  # 18% for a perfect exposition
+        return log2(maxi / 18)  # 18% for a perfect exposition
 
     def calc_awb(self, ary):
         """Calculate the red and blue gain correction for auto-white balance"""
