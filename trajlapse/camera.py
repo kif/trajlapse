@@ -297,6 +297,7 @@ class Camera(threading.Thread):
         """This method updates the white balance, exposure time and gain
         according to the history
         """
+        self.camera.exposure_mode = self.exposure_mode
         # return #disabled for now
         if len(self.wb_red) * len(self.wb_blue) == 0:
             return
