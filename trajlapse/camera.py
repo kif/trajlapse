@@ -26,7 +26,7 @@ def analyzer(shape, qin, qout):
                 os.makedirs(dst)
             except:
                 pass
-        jf = os.path.join(dst, os.path.splitext(os.path.basename(fname)[0] + ".json"))
+        jf = os.path.join(dst, os.path.splitext(os.path.basename(fname))[0] + ".json")
 
         with open(jf, "w") as f:
             json.dump(results, f, indent=4)
