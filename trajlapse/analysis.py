@@ -31,7 +31,7 @@ class Analyzer:
         p[self.shape[0] // 3:2 * self.shape[0] // 3, self.shape[1] // 3:2 * self.shape[1] // 3] = 1
         self.mask = numpy.where(p)
 
-    def process(self, filename, do_exif=False):
+    def process(self, filename, do_exif=True):
         if do_exif:
             try:
                 results = self.read_exif(filename)
@@ -77,7 +77,8 @@ class Analyzer:
         exif = image.exifData()
         results = {
         "iso": exif["Exif.Photo.ISOSpeedRatings"].toLong(),
-        "speed": exif["Exif.Photo.ShutterSpeedValue"].toFloat(),
+        # "speed": exif["Exif.Photo.ShutterSpeedValue"].toFloat(),
+        "speed": 1.0 / exif["Exif.Photo.ExposureTime"].toFloat(),
         "Ev_exif": exif["Exif.Photo.BrightnessValue"].toFloat()
         }
         results["Ev_calc"] = lens.calc_EV(results["speed"], iso=results["iso"])
