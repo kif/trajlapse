@@ -36,7 +36,7 @@ class Analyzer:
             try:
                 results = self.read_exif(filename)
             except Exception:
-              results = {"exif": "corrupted"}
+                results = {"exif": "corrupted"}
         else:
             results = {}
         ary = numpy.asarray(Image.open(filename))
@@ -53,10 +53,11 @@ class Analyzer:
         """
         lrgb = self.linearize(ary[self.mask])
         numpy.dot(lrgb.astype(numpy.float32), self.Lmat, out=self.Lary)
-        self.Lary += 0.5
-        hist = numpy.bincount(self.Lary.astype(numpy.int8))
-        maxi = max(1, numpy.argmax(hist))  # median, mean or mod ?
-        return log2(maxi / 18)  # 18% for a perfect exposition
+        # numself.Lary += 0.5
+        # hist = numpy.bincount(self.Lary.astype(numpy.int8))
+        # maxi = max(1, numpy.argmax(hist))  # median, mean or mod ?
+        # return log2(maxi / 18)  # 18% for a perfect exposition
+        return log2(self.Lary.mean() / 18.0)  # use the mean
 
     def calc_awb(self, ary):
         """Calculate the red and blue gain correction for auto-white balance"""
