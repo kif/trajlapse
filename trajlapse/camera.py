@@ -297,8 +297,6 @@ class Camera(threading.Thread):
         """This method updates the white balance, exposure time and gain
         according to the history
         """
-        self.camera.exposure_mode = self.exposure_mode
-        # return #disabled for now
         if len(self.wb_red) * len(self.wb_blue) == 0:
             return
         if len(self.wb_red) > self.avg_wb:
@@ -309,23 +307,20 @@ class Camera(threading.Thread):
         self.camera.awb_gains = (savgol0(self.wb_red),
                                  savgol0(self.wb_blue))
         ev = savgol1(self.histo_ev)
-        speed = lens.calc_speed(ev)
+        new_iso = iso = self.camera.iso
+        speed100 = lens.calc_speed(ev)
+        speed = speed100 * iso / 100
         framerate = float(self.camera.framerate)
-        logger.debug(f"Set Exposure to {ev:.3f}  speed: {speed:.3f} {framerate:.3f}")
 
-        if speed > framerate:
-            self.camera.iso = 100
-            self.camera.shutter_speed = int(1e6 / speed)
-        elif speed > framerate * 2:
-            self.camera.iso = 200
-            self.camera.shutter_speed = int(5e5 / speed)
-        elif speed > framerate * 4:
-            self.camera.iso = 400
-            self.camera.shutter_speed = int(2.5e5 / speed)
-        else:
-            self.camera.iso = 800
-            self.camera.shutter_speed = min(int(1.25e5 / speed), int(1e6 / framerate))
-        self.camera.exposure_mode = "off"
+        if speed < 2.5 * framerate:
+            new_iso = max(800, iso * 2)
+        if speed>250*framerate:
+            new_iso = min(100, iso // 2)
+        if new_iso != iso:
+            self.change_iso(new_iso)
+
+        speed = speed100 * new_iso / 100
+        self.camera.shutter_speed = int(1e6 / speed)
 
     def set_exposure_auto(self):
         self.camera.shutter_speed = 0
@@ -355,15 +350,13 @@ class Camera(threading.Thread):
         "Empty queue with processed info and update history. finally set iso and wb"
         while not self.analysis_queue_out.empty():
             result = self.analysis_queue_out.get()
-            speed = 1e6 / result["exposure_speed"]
-            ev0 = lens.calc_EV(speed, iso=result["iso_calc"])
-            ev = ev0 + result['delta_Ev']
+            ev = result['Ev_calc'] + result['delta_Ev']
             self.histo_ev.append(ev)
             rg, bg = result['awb_gains']
             rm, bm = result['delta_rb']
             self.wb_red.append(rg * rm)
             self.wb_blue.append(bg * bm)
-            logger.info(f"{result['filename']} Ev: {ev:.3f}={ev0:.3f}+{result['delta_Ev']:.3f} Rg: {rg*rm:.3f}={rg:.3f}*{rm:.3f} Bg: {bg*bm:.3f}={bg:.3f}*{bm:.3f}")
+            logger.info(f"{result['filename']} Ev: {ev:.3f}={result['Ev_calc']:.3f}+{result['delta_Ev']:.3f} Rg: {rg*rm:.3f}={rg:.3f}*{rm:.3f} Bg: {bg*bm:.3f}={bg:.3f}*{bm:.3f}")
         self.update_expo()
 
     def get_exposure(self):
@@ -395,3 +388,17 @@ class Camera(threading.Thread):
             self.camera.exposure_mode = self.exposure_mode = "auto"  # auto"
             logger.info(f"set exposure to {self.exposure_mode}")
         return ev
+
+    def change_iso(self, iso):
+        logger.info(f"switch ISO from {self.camera.iso} to {iso}, takes some time ...")
+        t0 = time.time()
+        self.camera.exposure_mode = self.exposure_mode
+        self.camera.iso = iso
+        last_gain = float(self.camera.analog_gain*self.camera.digital_gain)
+        time.sleep(2)
+        gain = float(self.camera.analog_gain*self.camera.digital_gain)
+        while gain != last_gain:
+            last_gain = gain
+            time.sleep(1)
+        logger.info(f"Gain settled, ISO update finished, took {time.time()-t0:.3f}s")
+        self.camera.exposure_mode = "off"
