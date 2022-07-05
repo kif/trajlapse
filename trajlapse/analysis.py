@@ -31,12 +31,14 @@ class Analyzer:
         p[self.shape[0] // 3:2 * self.shape[0] // 3, self.shape[1] // 3:2 * self.shape[1] // 3] = 1
         self.mask = numpy.where(p)
 
-    def process(self, filename):
-        # try:
-        #     results = self.read_exif(filename)
-        # except Exception:
-        #     results = {"exif": "corrupted"}
-        results = {}
+    def process(self, filename, do_exif=False):
+        if do_exif:
+            try:
+                results = self.read_exif(filename)
+            except Exception:
+              results = {"exif": "corrupted"}
+        else:
+            results = {}
         ary = numpy.asarray(Image.open(filename))
         results["filename"] = filename
         results["delta_Ev"] = self.calc_expo(ary)
