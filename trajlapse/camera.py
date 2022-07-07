@@ -146,7 +146,7 @@ class Camera(threading.Thread):
                 p.join()
         self.analyser_pool = []
         logger.info("Delay to stop camera")
-        time.sleep(2 / float(self.camera.framerate))
+        time.sleep(1 + 2 / float(self.camera.framerate))
         self.camera.close()
 
     def pause(self, wait=True):
