@@ -281,8 +281,8 @@ class Camera(threading.Thread):
                     self.analysis_queue_in.put(metadata)
                 else:
                     logger.warning("Too many file awaiting for processing")
-                    time.sleep(1.0 / self.camera.framerate)
-            time.sleep(0.1 / self.camera.framerate)
+                    time.sleep(1.0 / float(self.camera.framerate))
+            time.sleep(0.1 / float(self.camera.framerate))
         self.quit()
 
     def get_metadata(self):
@@ -331,7 +331,7 @@ class Camera(threading.Thread):
         if speed > 250 * framerate:
             new_iso = max(100, iso // 2)
         if new_iso != iso:
-            print(iso, new_iso, ev, speed, framerate)
+            # print(iso, new_iso, ev, speed, framerate)
             self.change_iso(new_iso)
 
         speed = speed100 * new_iso / 100
@@ -369,9 +369,9 @@ class Camera(threading.Thread):
             self.histo_ev.append(ev)
             rg, bg = result['awb_gains']
             rm, bm = result['delta_rb']
-            self.wb_red.append(rg * rm)
-            self.wb_blue.append(bg * bm)
-            logger.info(f"{result['filename']} Ev: {ev:.3f}={result['Ev_calc']:.3f}+{result['delta_Ev']:.3f} Rg: {rg*rm:.3f}={rg:.3f}*{rm:.3f} Bg: {bg*bm:.3f}={bg:.3f}*{bm:.3f}")
+            self.wb_red.append(rg / rm)
+            self.wb_blue.append(bg / bm)
+            logger.info(f"{result['filename']} Ev: {ev:.3f}={result['Ev_calc']:.3f}+{result['delta_Ev']:.3f} Rg: {rg/rm:.3f}={rg:.3f}/{rm:.3f} Bg: {bg/bm:.3f}={bg:.3f}/{bm:.3f}")
         if update:
             self.update_expo()
 
