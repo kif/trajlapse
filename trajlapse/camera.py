@@ -369,8 +369,8 @@ class Camera(threading.Thread):
             self.histo_ev.append(ev)
             rg, bg = result['awb_gains']
             rm, bm = result['delta_rb']
-            self.wb_red.append(rg / rm)
-            self.wb_blue.append(bg / bm)
+            self.wb_red.append(min(max(0, rg / rm), 8))
+            self.wb_blue.append(min(max(0, bg / bm), 8,))
             logger.info(f"{result['filename']} Ev: {ev:.3f}={result['Ev_calc']:.3f}+{result['delta_Ev']:.3f} Rg: {rg/rm:.3f}={rg:.3f}/{rm:.3f} Bg: {bg/bm:.3f}={bg:.3f}/{bm:.3f}")
         if update:
             self.update_expo()
