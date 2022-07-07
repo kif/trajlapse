@@ -236,7 +236,7 @@ class Camera(threading.Thread):
             self.wb_red.append(rg * rm)
             self.wb_blue.append(bg * bm)
 
-        iso = 2 ** round(math.log(max(iso, 100) / 100, 2)) * 100
+        iso = 2 ** round(math.log(min(800, max(iso, 100)) / 100, 2)) * 100
         speed100 = lens.calc_speed(ev)
         speed = speed100 * iso / 100
         framerate = float(self.camera.framerate)
@@ -327,10 +327,11 @@ class Camera(threading.Thread):
         framerate = float(self.camera.framerate)
 
         if speed < 2.5 * framerate:
-            new_iso = max(800, iso * 2)
+            new_iso = min(800, iso * 2)
         if speed > 250 * framerate:
-            new_iso = min(100, iso // 2)
+            new_iso = max(100, iso // 2)
         if new_iso != iso:
+            print(iso, new_iso, ev, speed, framerate)
             self.change_iso(new_iso)
 
         speed = speed100 * new_iso / 100
