@@ -146,7 +146,7 @@ class Camera(threading.Thread):
                 p.join()
         self.analyser_pool = []
         logger.info("Delay to stop camera")
-        time.sleep(2 / self.camera.framerate)
+        time.sleep(2 / float(self.camera.framerate))
         self.camera.close()
 
     def pause(self, wait=True):
@@ -242,9 +242,9 @@ class Camera(threading.Thread):
         framerate = float(self.camera.framerate)
 
         if speed < 2.5 * framerate:
-            iso = max(800, iso * 2)
+            iso = min(800, iso * 2)
         if speed > 250 * framerate:
-            iso = min(100, iso // 2)
+            iso = max(100, iso // 2)
         self.change_iso(iso)
         self.set_exposure_fixed()
 
