@@ -139,13 +139,15 @@ class Camera(threading.Thread):
     def quit(self, *arg, **kwarg):
         "quit the main loop and end the thread"
         self.quit_event.set()
-        self.camera.close()
         if self.analyser_pool:
             for p in self.analyser_pool:
                 self.analysis_queue_in.put(None)
             for p in self.analyser_pool:
                 p.join()
         self.analyser_pool = []
+        logger.info("Delay to stop camera")
+        time.sleep(2 / self.camera.framerate)
+        self.camera.close()
 
     def pause(self, wait=True):
         "pause the recording, wait for the current value to be acquired"
