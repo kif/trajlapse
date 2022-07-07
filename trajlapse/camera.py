@@ -3,6 +3,7 @@ import os
 from collections import namedtuple, OrderedDict
 import time
 import json
+import math
 import threading
 from multiprocessing import Process, Queue as MpQueue
 import io
@@ -233,6 +234,7 @@ class Camera(threading.Thread):
             self.wb_red.append(rg * rm)
             self.wb_blue.append(bg * bm)
 
+        iso = 2 ** round(math.log(max(iso, 100) / 100), 2) * 100
         speed100 = lens.calc_speed(ev)
         speed = speed100 * iso / 100
         framerate = float(self.camera.framerate)
