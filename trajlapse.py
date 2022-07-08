@@ -285,10 +285,10 @@ class TimeLapse(threading.Thread):
                 filename = metadata.get("filename")
                 self.database[filename] = metadata
                 self.camera_queue.task_done()
-                #next image
+                # next image
                 now = time.time()
                 next_img = self.next_img + self.delay
-                self.next_img = now + self.delay if now>next_img else next_img
+                self.next_img = now + self.delay if now > next_img else next_img
                 next_pos = self.trajectory.calc_pos(self.next_img - self.start_time)
                 logger.info(f"Move to next_pos {next_pos}")
                 self.frame_idx += 1
@@ -301,6 +301,7 @@ class TimeLapse(threading.Thread):
             else:
                 time.sleep(0.1)
         self.save_config(self.frame_idx)
+        self.database.close()
 
 
 if __name__ == "__main__":

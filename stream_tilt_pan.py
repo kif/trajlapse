@@ -112,9 +112,9 @@ class Server(object):
         self.current_pos = None
         self.camera = None
         self.streamout = None
-        self.resolution = (1920, 1080)# (640,480)#(800, 600)
-        self.avg_wb = 51 
-        self.avg_ev = 51 
+        self.resolution = (1920, 1080)  # (640,480)#(800, 600)
+        self.avg_wb = 151
+        self.avg_ev = 151
         self.histo_ev = []
         self.wb_red = []
         self.wb_blue = []
@@ -124,7 +124,7 @@ class Server(object):
     def __del__(self):
         if self.camera:
             self.camera.stop_recording()
-        self.camera= self.streamout = None
+        self.camera = self.streamout = None
 
     def quit(self, *arg, **kwarg):
         self.quit_event.set()
@@ -280,10 +280,10 @@ class Server(object):
 
     def setup_cam(self):
         self.streamout = StreamingOutput()
-        self.camera= PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
+        self.camera = PiCamera(resolution=self.resolution, framerate=10)  # , sensor_mode=3)
         self.camera.awb_mode = "auto"
-        self.camera.exposure_mode= "nightpreview"
-        self.camera.start_recording(self.streamout, 
+        self.camera.exposure_mode = "nightpreview"
+        self.camera.start_recording(self.streamout,
                                     format='mjpeg',
                                     )
 
@@ -295,7 +295,7 @@ class Server(object):
                     "digital_gain": float(self.camera.digital_gain),
                     "exposure_compensation": float(self.camera.exposure_compensation),
                     "exposure_speed": ces,
-                    "speed": 1e6/ces if ces else "?",
+                    "speed": 1e6 / ces if ces else "?",
                     "exposure_mode": self.camera.exposure_mode,
                     "framerate": float(self.camera.framerate),
                     "revision": self.camera.revision,
@@ -310,11 +310,10 @@ class Server(object):
         else:
             metadata['iso_calc'] = 100.0 * metadata["analog_gain"] * metadata["digital_gain"]
         try:
-            metadata['Ev'] = lens.calc_EV( 1e6 / ces, metadata["digital_gain"]*metadata["analog_gain"])
+            metadata['Ev'] = lens.calc_EV(1e6 / ces, metadata["digital_gain"] * metadata["analog_gain"])
         except ZeroDivisionError:
             metadata["Ev"] = "?"
         return metadata
-
 
     def capture(self):
         dico = self.get_metadata()
@@ -329,10 +328,10 @@ class Server(object):
         self.trajectory.append(self.current_pos)
         traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10}
                 for i in self.trajectory]
-        camera = OrderedDict((("sensor_mode", 3),
+        camera = OrderedDict((("sensor_mode", 4),
                               ("warmup", 10),
                               ("framerate", 1),
-                              ("resolution", [4058, 3040]),
+                              ("resolution", [2028, 1520]),
                               ("avg_wb", self.avg_wb),
                               ("avg_ev", self.avg_ev),
                               ("histo_ev", self.histo_ev),
@@ -340,7 +339,7 @@ class Server(object):
                               ("wb_blue", self.wb_blue),))
         dico = OrderedDict((("trajectory", traj),
                             ("delay", 10),
-                            ("folder", "/tmp"),
+                            ("folder", "/mnt/data/" + datetime.datetime.now().strftime("%Y-%m-%d")),
                             ("camera", camera),
                             ))
 

@@ -147,7 +147,8 @@ class Camera(threading.Thread):
         self.analyser_pool = []
         logger.info("Delay to stop camera")
         time.sleep(1 + 2 / float(self.camera.framerate))
-        self.camera.close()
+        if self.camera is not None and self.camera._camera is not None:
+            self.camera.close()
 
     def pause(self, wait=True):
         "pause the recording, wait for the current value to be acquired"
@@ -252,7 +253,7 @@ class Camera(threading.Thread):
         "main thread activity"
 
         while not self.quit_event.is_set():
-            self.set_exposure()
+            new_iso = self.set_exposure()
             if self.record_event.is_set():
                 # record !
                 # self.set_exposure_fixed()
@@ -269,6 +270,9 @@ class Camera(threading.Thread):
                 metadata["camera_stop"] = after
                 self.queue.put(metadata)
                 self.record_event.clear()
+                # Always wait for after a collected fame to change iso since it takes time
+                if new_iso:
+                    self.change_iso(new_iso)
             else:
                 # acquires dummy image for exposure calibration
                 if len(os.listdir(self.analysis_folder)) < self.max_analysis:
@@ -330,12 +334,14 @@ class Camera(threading.Thread):
             new_iso = min(800, iso * 2)
         if speed > 250 * framerate:
             new_iso = max(100, iso // 2)
-        if new_iso != iso:
+        if new_iso == iso:
             # print(iso, new_iso, ev, speed, framerate)
-            self.change_iso(new_iso)
+            # self.change_iso(new_iso)
+            new_iso = None
 
-        speed = speed100 * new_iso / 100
+        speed = speed100 * iso / 100
         self.camera.shutter_speed = int(1e6 / speed)
+        return new_iso
 
     def set_exposure_auto(self):
         self.camera.shutter_speed = 0
@@ -416,5 +422,6 @@ class Camera(threading.Thread):
         while gain != last_gain:
             last_gain = gain
             time.sleep(1)
+            gain = float(self.camera.analog_gain * self.camera.digital_gain)
         logger.info(f"Gain settled, ISO update finished, took {time.time()-t0:.3f}s")
         self.camera.exposure_mode = "off"
