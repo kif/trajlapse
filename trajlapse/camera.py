@@ -127,7 +127,7 @@ class Camera(threading.Thread):
         self.last_subindex = -1
         self.lock = threading.Semaphore()
         self.camera = PiCamera(resolution=resolution, framerate=framerate, sensor_mode=sensor_mode)
-        self.nproc = 2
+        self.nproc = 3
         self.max_analysis = 10
         self.analysis_queue_in = self.analysis_queue_out = self.analyser_pool = None
         self.setup_analyzer_pool()
