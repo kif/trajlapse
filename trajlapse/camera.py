@@ -273,6 +273,7 @@ class Camera(threading.Thread):
                 # Always wait for after a collected fame to change iso since it takes time
                 if new_iso:
                     self.change_iso(new_iso)
+                    self.set_exposure()
             else:
                 # acquires dummy image for exposure calibration
                 if len(os.listdir(self.analysis_folder)) < self.max_analysis:
@@ -286,7 +287,7 @@ class Camera(threading.Thread):
                 else:
                     logger.warning("Too many file awaiting for processing")
                     time.sleep(1.0 / float(self.camera.framerate))
-            time.sleep(0.1 / float(self.camera.framerate))
+            time.sleep(1.0 / float(self.camera.framerate))
         self.quit()
 
     def get_metadata(self):
@@ -339,7 +340,6 @@ class Camera(threading.Thread):
             # self.change_iso(new_iso)
             new_iso = None
 
-        speed = speed100 * iso / 100
         self.camera.shutter_speed = int(1e6 / speed)
         return new_iso
 
@@ -350,10 +350,8 @@ class Camera(threading.Thread):
         self.camera.meter_mode = "average"
         self.camera.exposure_mode = self.exposure_mode
         self.still_stats = True
-        # self.camera.start_preview()
 
     def set_exposure_fixed(self):
-        # self.camera.stop_preview()
         self.still_stats = False
         self.update_expo()
         self.camera.awb_mode = "off"
@@ -365,10 +363,9 @@ class Camera(threading.Thread):
         rg, bg = self.camera.awb_gains
         self.wb_red.append(1.0 if rg == 0 else float(rg))
         self.wb_blue.append(1.0 if bg == 0 else float(bg))
-        # return ev,rg,bg
 
     def set_exposure(self, update=True):
-        "Empty queue with processed info and update history. finally set iso and wb"
+        "Empty queue with processed info and update history. finally set exposure time and wb. Return iso setting when change needed"
         while not self.analysis_queue_out.empty():
             result = self.analysis_queue_out.get()
             ev = result['Ev_calc'] + result['delta_Ev']
@@ -379,7 +376,7 @@ class Camera(threading.Thread):
             self.wb_blue.append(min(max(0, bg / bm), 8,))
             logger.info(f"{result['filename']} Ev: {ev:.3f}={result['Ev_calc']:.3f}+{result['delta_Ev']:.3f} Rg: {rg/rm:.3f}={rg:.3f}/{rm:.3f} Bg: {bg/bm:.3f}={bg:.3f}/{bm:.3f}")
         if update:
-            self.update_expo()
+            return self.update_expo()
 
     def get_exposure(self):
         ag = float(self.camera.analog_gain)

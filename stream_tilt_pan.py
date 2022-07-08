@@ -114,7 +114,7 @@ class Server(object):
         self.streamout = None
         self.resolution = (1920, 1080)  # (640,480)#(800, 600)
         self.avg_wb = 151
-        self.avg_ev = 151
+        self.avg_ev = 53
         self.histo_ev = []
         self.wb_red = []
         self.wb_blue = []
@@ -306,7 +306,7 @@ class Server(object):
         if metadata['revision'] == "imx219":
             metadata['iso_calc'] = 54.347826086956516 * metadata["analog_gain"] * metadata["digital_gain"]
         if metadata['revision'] == "imx477":
-            metadata['iso_calc'] = 40 * metadata["analog_gain"] * metadata["digital_gain"]
+            metadata['iso_calc'] = 43.16 * metadata["analog_gain"] * metadata["digital_gain"]
         else:
             metadata['iso_calc'] = 100.0 * metadata["analog_gain"] * metadata["digital_gain"]
         try:
