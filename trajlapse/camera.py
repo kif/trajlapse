@@ -340,7 +340,7 @@ class Camera(threading.Thread):
             # self.change_iso(new_iso)
             new_iso = None
 
-        self.camera.shutter_speed = int(1e6 / speed)
+        self.camera.shutter_speed = int(1e6 / max(speed, framerate))
         return new_iso
 
     def set_exposure_auto(self):
