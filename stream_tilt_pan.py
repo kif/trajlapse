@@ -114,7 +114,7 @@ class Server(object):
         self.streamout = None
         self.resolution = (1920, 1080)  # (640,480)#(800, 600)
         self.avg_wb = 151
-        self.avg_ev = 53
+        self.avg_ev = 29
         self.histo_ev = []
         self.wb_red = []
         self.wb_blue = []
@@ -328,9 +328,9 @@ class Server(object):
         self.trajectory.append(self.current_pos)
         traj = [{"tilt": i.tilt, "pan": i.pan, "move": 60, "stay":10}
                 for i in self.trajectory]
-        camera = OrderedDict((("sensor_mode", 4),
+        camera = OrderedDict((("sensor_mode", 2),
                               ("warmup", 10),
-                              ("framerate", 1),
+                              ("framerate", 0.5),
                               ("resolution", [2028, 1520]),
                               ("avg_wb", self.avg_wb),
                               ("avg_ev", self.avg_ev),

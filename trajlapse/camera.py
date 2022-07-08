@@ -287,7 +287,7 @@ class Camera(threading.Thread):
                 else:
                     logger.warning("Too many file awaiting for processing")
                     time.sleep(1.0 / float(self.camera.framerate))
-            time.sleep(1.0 / float(self.camera.framerate))
+            time.sleep(0.1 / float(self.camera.framerate))
         self.quit()
 
     def get_metadata(self):
