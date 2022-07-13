@@ -185,9 +185,17 @@ class Camera(threading.Thread):
             p.start()
 
     def get_config(self):
-        config = OrderedDict([("resolution", tuple(self.camera.resolution)),
-                              ("framerate", float(self.camera.framerate)),
-                              ("sensor_mode", self.camera.sensor_mode),
+        try:
+            resolution = tuple(self.camera.resolution)
+            framerate = float(self.camera.framerate)
+            mode = self.camera.sensor_mode)
+        except:
+            resolution = (None, None)
+            framerate = None
+            mode = None
+        config = OrderedDict([("resolution", resolution), 
+                              ("framerate", framerate),
+                              ("sensor_mode", mode),
                               ("avg_ev", self.avg_ev),
                               ("avg_wb", self.avg_wb),
                               ("hist_ev", self.histo_ev),
@@ -196,6 +204,7 @@ class Camera(threading.Thread):
                               ("folder", self.folder)
                               ]
         )
+
         return config
 
     def set_config(self, dico):
@@ -325,7 +334,7 @@ class Camera(threading.Thread):
             self.histo_ev = self.histo_ev[-self.avg_ev:]
         self.camera.awb_gains = (savgol0(self.wb_red),
                                  savgol0(self.wb_blue))
-        ev = savgol1(self.histo_ev)
+        ev = savgol0(self.histo_ev)
         new_iso = iso = self.camera.iso
         speed100 = lens.calc_speed(ev)
         speed = speed100 * iso / 100
